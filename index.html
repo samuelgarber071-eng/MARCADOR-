@@ -1,302 +1,484 @@
 <!DOCTYPE html>
-<html lang="pt-BR" dir="ltr" id="app-root">
+<html lang="pt-BR">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Modern Bookmark Manager</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rastreador de Escrita 📝</title>
+    <style>
+        :root[data-theme="cyber"]{--bg-main:#0d0e15;--bg-sidebar:#07080c;--surface:#161925;--surface-hover:#222638;--text:#e2e8f0;--text-muted:#718096;--primary:#00f0ff;--secondary:#bd00ff;--gradient-neon:linear-gradient(135deg, #00f0ff, #bd00ff);--danger:#ff0055;--border:#2d3748;--shadow:rgba(0,240,255,0.15)}
+        :root[data-theme="br"]{--bg-main:#051205;--bg-sidebar:#020802;--surface:#0b240b;--surface-hover:#123a12;--text:#e6f4e6;--text-muted:#527a52;--primary:#39ff14;--secondary:#ffea00;--gradient-neon:linear-gradient(135deg, #39ff14, #ffea00);--danger:#ff3333;--border:#1a4d1a;--shadow:rgba(57,255,20,0.15)}
+        :root[data-theme="magma"]{--bg-main:#140806;--bg-sidebar:#090302;--surface:#260f0a;--surface-hover:#3d1810;--text:#f7ebd9;--text-muted:#8a6860;--primary:#ff6600;--secondary:#ff0033;--gradient-neon:linear-gradient(135deg, #ff6600, #ff0033);--danger:#ff3333;--border:#4d1f14;--shadow:rgba(255,102,0,0.15)}
+        body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg-main);color:var(--text);margin:0;display:flex;height:100vh;overflow:hidden;transition:background 0.3s}
+        
+        /* Layout e Topo da Sidebar */
+        .sidebar{width:240px;background:var(--bg-sidebar);display:flex;flex-direction:column;padding:10px;box-sizing:border-box;border-right:1px solid var(--border);flex-shrink:0;transition:all 0.3s ease;position:relative;z-index:10}
+        .sidebar.collapsed{width:0;padding:10px 0;overflow:hidden;border-right-color:transparent}
+        
+        .sidebar-top-row{display:flex;gap:6px;align-items:center;margin-bottom:10px;width:100%}
+        .btn-new-book{flex:1;background:transparent;color:#fff;border:1px solid var(--primary);box-shadow:0 0 5px var(--shadow);border-radius:6px;padding:10px;font-size:.9rem;text-align:left;cursor:pointer;display:flex;align-items:center;gap:10px;transition:all 0.2s;white-space:nowrap}
+        .btn-new-book:hover{background:rgba(255,255,255,0.05);box-shadow:0 0 10px var(--primary)}
+        
+        .btn-toggle-sidebar{background:var(--surface);border:1px solid var(--border);color:var(--primary);border-radius:6px;width:38px;height:38px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1.1rem;transition:all 0.2s;flex-shrink:0}
+        .btn-toggle-sidebar:hover{color:var(--secondary);border-color:var(--primary);box-shadow:0 0 8px var(--primary)}
+        
+        /* Gatilho Flutuante */
+        .btn-floating-trigger{position:absolute;top:15px;left:15px;background:var(--surface);border:1px solid var(--border);color:var(--primary);border-radius:6px;width:38px;height:38px;cursor:pointer;display:none;align-items:center;justify-content:center;font-size:1.1rem;z-index:5;transition:all 0.2s;box-shadow:0 0 10px rgba(0,0,0,0.4)}
+        .sidebar.collapsed ~ .btn-floating-trigger{display:flex}
+        .btn-floating-trigger:hover{color:var(--secondary);border-color:var(--primary);box-shadow:0 0 8px var(--primary)}
+
+        /* Listagens */
+        .book-list{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:4px}
+        .book-item{display:flex;justify-content:space-between;align-items:center;padding:8px 10px;border-radius:6px;cursor:pointer;font-size:.85rem;border:1px solid transparent;white-space:nowrap}
+        .book-item:hover {background:var(--surface-hover)}
+        .book-item.active{background:var(--surface);border-color:var(--secondary);box-shadow:0 0 8px var(--shadow)}
+        .book-title-tab{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;width:70%}
+        .actions-tab{display:none;gap:5px}
+        .book-item:hover .actions-tab{display:flex}
+        .btn-action-tab{background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:0.9rem;padding:0}
+        .btn-action-tab:hover{color:var(--primary)}
+        .btn-action-tab.del:hover{color:var(--danger)}
+        
+        .sub-section{margin-top:8px;border-top:1px dashed var(--border);padding-top:5px;white-space:nowrap}
+        .sub-header{display:flex;justify-content:space-between;align-items:center;padding:4px;font-size:0.8rem;color:var(--text-muted);cursor:pointer}
+        .sub-list{display:none;flex-direction:column;gap:4px;max-height:100px;overflow-y:auto}
+        .sidebar-footer{border-top:1px solid var(--border);padding-top:10px;display:flex;flex-direction:column;gap:4px;white-space:nowrap}
+        .btn-tool{background:none;border:none;color:var(--text);font-size:.8rem;text-align:left;padding:8px;cursor:pointer;border-radius:4px;transition:all 0.2s}
+        .btn-tool:hover{background:var(--surface);color:var(--primary)}
+        
+        /* Área Central */
+        .main-content{flex:1;display:flex;justify-content:center;align-items:center;padding:15px;overflow-y:auto;position:relative;transition:all 0.3s ease}
+        .card{background:var(--surface);padding:20px;border-radius:10px;border:1px solid rgba(255,255,255,0.05);box-shadow:0 10px 30px rgba(0,0,0,0.5);width:100%;max-width:360px;box-sizing:border-box;transition:background 0.3s}
+        .inline-title-edit{background:transparent;border:1px dashed transparent;color:#fff;font-size:1.3rem;font-weight:bold;text-align:center;width:100%;margin-bottom:10px;padding:2px}
+        .inline-title-edit:focus{border-color:var(--primary);outline:none;background:rgba(0,0,0,.3);border-radius:4px}
+        .form-group{margin-bottom:10px}
+        label{display:block;margin-bottom:4px;font-size:.8rem;color:var(--primary);text-transform:uppercase;letter-spacing:0.5px}
+        input[type="number"], select{width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg-main);color:#fff;box-sizing:border-box;font-size:.95rem;text-align:center;transition:background 0.3s}
+        input[type="number"]:focus, select:focus{border-color:var(--secondary);outline:none}
+        
+        .btn-save{width:100%;padding:10px;background:var(--gradient-neon);border:none;border-radius:6px;color:#fff;font-weight:bold;font-size:.95rem;cursor:pointer;margin-top:5px;box-shadow:0 0 10px rgba(0,0,0,0.3)}
+        .btn-save:hover{opacity:0.9;box-shadow:0 0 15px var(--primary)}
+        .progress-container{margin:15px 0 5px 0;background:var(--bg-main);border-radius:8px;border:1px solid var(--border);overflow:hidden}
+        .progress-bar{height:10px;background:var(--gradient-neon);box-shadow:0 0 8px var(--primary);width:0%;transition:width .3s}
+        .stats{text-align:center;font-size:1rem;font-weight:bold}
+        
+        .history{margin-top:15px;max-height:80px;overflow-y:auto;border-top:1px solid var(--border);padding-top:10px}
+        .history-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:5px}
+        .history h3{font-size:.8rem;color:var(--text-muted);margin:0}
+        .btn-clear-history{background:none;border:none;color:var(--danger);cursor:pointer;font-size:.75rem;padding:0;font-weight:bold}
+        .history-item{display:flex;justify-content:space-between;font-size:.75rem;color:var(--text-muted);margin-bottom:4px;padding-bottom:2px;border-bottom:1px dashed var(--border)}
+        
+        /* Modal da Central de Configurações */
+        .modal-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.75);backdrop-filter:blur(4px);display:none;justify-content:center;align-items:center;z-index:100}
+        .modal-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;width:90%;max-width:320px;box-shadow:0 0 25px var(--shadow)}
+        .modal-title{margin-top:0;font-size:1.2rem;color:var(--primary);text-align:center;margin-bottom:15px}
+        .modal-footer{display:flex;justify-content:flex-end;margin-top:15px}
+        .btn-close-modal{padding:8px 16px;background:var(--border);border:none;color:var(--text);border-radius:6px;cursor:pointer;font-weight:bold}
+        .btn-close-modal:hover{background:var(--surface-hover);color:var(--primary)}
+
+        #importBackupInput{display:none}
+        .empty-state{text-align:center;color:var(--text-muted)}
+        .empty-state h2{color:var(--secondary)}
+    </style>
 </head>
-<body class="bg-gray-900 text-gray-100 font-sans min-h-screen flex flex-col transition-colors duration-300">
+<body>
 
-    <header class="bg-gray-800 border-b border-gray-700 px-6 py-4 flex justify-between items-center shadow-lg">
-        <div class="flex items-center space-x-3 rtl:space-x-reverse">
-            <i class="fa-solid fa-bookmark text-indigo-500 text-2xl"></i>
-            <span class="text-xl font-bold tracking-wider" id="txt-logo">Bookmarks</span>
-        </div>
-        <nav class="flex space-x-2 rtl:space-x-reverse">
-            <button onclick="switchTab('dashboard')" id="btn-nav-dash" class="px-4 py-2 rounded-lg bg-indigo-600 text-white font-medium shadow transition-all">
-                <i class="fa-solid fa-layer-group mr-2 rtl:ml-2 rtl:mr-0"></i><span id="txt-nav-dash">Dashboard</span>
-            </button>
-            <button onclick="switchTab('settings')" id="btn-nav-settings" class="px-4 py-2 rounded-lg text-gray-400 hover:bg-gray-700 hover:text-white font-medium transition-all">
-                <i class="fa-solid fa-gear mr-2 rtl:ml-2 rtl:mr-0"></i><span id="txt-nav-settings">Configurações</span>
-            </button>
-        </nav>
-    </header>
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-top-row">
+            <button class="btn-new-book" id="lblNewBook" onclick="createNewBook()">➕ Novo livro</button>
+            <button class="btn-toggle-sidebar" onclick="toggleSidebar()" title="Recolher Menu">◀</button>
+        </div>
+        
+        <div class="book-list" id="bookList"></div>
+        
+        <div class="sub-section">
+            <div class="sub-header" onclick="toggleSection('archiveList','archiveArrow')">
+                <span id="lblArchiveSec">📁 Arquivados (0)</span>
+                <span id="archiveArrow">▶</span>
+            </div>
+            <div class="sub-list" id="archiveList"></div>
+        </div>
 
-    <main class="flex-1 p-6 max-w-6xl w-full mx-auto">
-        
-        <section id="tab-dashboard" class="space-y-6">
-            <div class="bg-gray-800 p-6 rounded-xl border border-gray-700 shadow-md">
-                <h2 class="text-lg font-semibold mb-4 text-indigo-400" id="title-add">Adicionar Novo Marcador</h2>
-                <form id="bookmark-form" onsubmit="addBookmark(event)" class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <input type="text" id="input-title" required placeholder="Título do site" class="bg-gray-700 border border-gray-600 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-indigo-500">
-                    <input type="url" id="input-url" required placeholder="https://exemplo.com" class="bg-gray-700 border border-gray-600 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-indigo-500">
-                    <button type="submit" class="bg-indigo-600 hover:bg-indigo-500 text-white font-medium py-2.5 px-6 rounded-lg transition-colors flex items-center justify-center space-x-2">
-                        <i class="fa-solid fa-plus"></i> <span id="btn-add">Adicionar</span>
-                    </button>
-                </form>
-            </div>
+        <div class="sub-section">
+            <div class="sub-header" onclick="toggleSection('trashList','trashArrow')">
+                <span id="lblTrashSec">🗑️ Lixeira (0/5)</span>
+                <span id="trashArrow">▶</span>
+            </div>
+            <div class="sub-list" id="trashList"></div>
+        </div>
 
-            <div class="flex flex-wrap justify-between items-center gap-4 border-b border-gray-700 pb-4">
-                <div class="flex space-x-2 rtl:space-x-reverse" id="filter-container">
-                    <button onclick="filterBookmarks('all')" id="filter-all" class="px-4 py-1.5 rounded-full text-xs font-semibold bg-indigo-500/20 text-indigo-400 border border-indigo-500/30">Todos</button>
-                    <button onclick="filterBookmarks('active')" id="filter-active" class="px-4 py-1.5 rounded-full text-xs font-semibold bg-gray-850 text-gray-400 hover:bg-gray-800">Ativos</button>
-                    <button onclick="filterBookmarks('archived')" id="filter-archived" class="px-4 py-1.5 rounded-full text-xs font-semibold bg-gray-850 text-gray-400 hover:bg-gray-800">Arquivados</button>
-                </div>
-                
-                <div class="flex items-center space-x-1 bg-gray-800 p-1 rounded-lg border border-gray-700">
-                    <button onclick="changeLayout('grid')" id="layout-grid" class="p-2 rounded bg-indigo-600 text-white"><i class="fa-solid fa-grid-2"></i> Grid</button>
-                    <button onclick="changeLayout('list')" id="layout-list" class="p-2 rounded text-gray-400 hover:text-white"><i class="fa-solid fa-list"></i> Lista</button>
-                </div>
-            </div>
+        <div class="sidebar-footer">
+            <button class="btn-tool" id="lblSettingsBtn" onclick="openSettings()">⚙️ Configurações</button>
+            <button class="btn-tool" id="lblExportBtn" onclick="exportBackup()">📥 Exportar Backup</button>
+            <button class="btn-tool" id="lblImportBtn" onclick="document.getElementById('importBackupInput').click()">📤 Importar Backup</button>
+            <input type="file" id="importBackupInput" accept=".json" onchange="importBackup(event)">
+        </div>
+    </div>
 
-            <div id="bookmarks-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                </div>
-        </section>
+    <button class="btn-floating-trigger" onclick="toggleSidebar()" title="Expandir Menu">☰</button>
 
-        <section id="tab-settings" class="hidden space-y-6">
-            <div class="bg-gray-800 p-8 rounded-xl border border-gray-700 shadow-md max-w-2xl mx-auto">
-                <div class="flex items-center space-x-3 rtl:space-x-reverse border-b border-gray-700 pb-4 mb-6">
-                    <i class="fa-solid fa-sliders text-indigo-500 text-2xl"></i>
-                    <h2 class="text-xl font-bold" id="title-settings">Sala de Configurações</h2>
-                </div>
+    <div class="main-content">
+        <div class="card" id="editorCard" style="display:none">
+            <input type="text" id="bookTitle" class="inline-title-edit" oninput="updateBookTitle(this.value)">
+            <div class="progress-container"><div class="progress-bar" id="progressBar"></div></div>
+            <div class="stats" id="stats">0/0 págs (0%)</div>
+            <br>
+            <div class="form-group">
+                <label id="lblMeta" for="totalPages">Meta Total</label>
+                <input type="number" id="totalPages" min="1">
+            </div>
+            <div class="form-group">
+                <label id="lblAtual" for="currentPage">Página Atual</label>
+                <input type="number" id="currentPage" min="0">
+            </div>
+            <button class="btn-save" id="lblSaveBtn" onclick="saveProgress()">Salvar Marcador</button>
+            <div class="history">
+                <div class="history-header">
+                    <h3 id="lblHistoryTitle">Últimas atualizações:</h3>
+                    <button class="btn-clear-history" id="lblClearHistory" onclick="clearBookHistory()">Limpar</button>
+                </div>
+                <div id="historyLog"></div>
+            </div>
+        </div>
+        <div id="emptyState" class="empty-state">
+            <h2 id="lblEmptyTitle">Nenhum livro ativo 📖</h2>
+            <p id="lblEmptyDesc">Crie ou selecione um livro na barra lateral.</p>
+        </div>
+    </div>
 
-                <div class="space-y-3">
-                    <label class="block text-sm font-medium text-gray-400" id="label-lang">Selecione o Idioma do Sistema</label>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <button onclick="setLanguage('pt')" class="lang-btn flex items-center justify-between p-3 rounded-lg border border-gray-700 bg-gray-850 hover:border-indigo-500 transition-all" data-lang="pt">
-                            <span>Português</span><span class="text-xs text-gray-500">PT-BR</span>
-                        </button>
-                        <button onclick="setLanguage('en')" class="lang-btn flex items-center justify-between p-3 rounded-lg border border-gray-700 bg-gray-850 hover:border-indigo-500 transition-all" data-lang="en">
-                            <span>English</span><span class="text-xs text-gray-500">EN</span>
-                        </button>
-                        <button onclick="setLanguage('es')" class="lang-btn flex items-center justify-between p-3 rounded-lg border border-gray-700 bg-gray-850 hover:border-indigo-500 transition-all" data-lang="es">
-                            <span>Español</span><span class="text-xs text-gray-500">ES</span>
-                        </button>
-                        <button onclick="setLanguage('zh')" class="lang-btn flex items-center justify-between p-3 rounded-lg border border-gray-700 bg-gray-850 hover:border-indigo-500 transition-all" data-lang="zh">
-                            <span>简体中文</span><span class="text-xs text-gray-500">ZH</span>
-                        </button>
-                        <button onclick="setLanguage('ja')" class="lang-btn flex items-center justify-between p-3 rounded-lg border border-gray-700 bg-gray-850 hover:border-indigo-500 transition-all" data-lang="ja">
-                            <span>日本語</span><span class="text-xs text-gray-500">JA</span>
-                        </button>
-                        <button onclick="setLanguage('he')" class="lang-btn flex items-center justify-between p-3 rounded-lg border border-gray-700 bg-gray-850 hover:border-indigo-500 transition-all" data-lang="he">
-                            <span>עברית</span><span class="text-xs text-gray-500">HE (RTL)</span>
-                        </button>
-                        <button onclick="setLanguage('ar')" class="lang-btn flex items-center justify-between p-3 rounded-lg border border-gray-700 bg-gray-850 hover:border-indigo-500 transition-all" data-lang="ar">
-                            <span>العربية</span><span class="text-xs text-gray-500">AR (RTL)</span>
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </section>
+    <!-- Central de Configurações Modal -->
+    <div class="modal-overlay" id="settingsModal">
+        <div class="modal-card">
+            <h3 class="modal-title" id="lblModalTitle">⚙️ Configurações</h3>
+            
+            <div class="form-group">
+                <label id="lblConfigLang">Idioma / Language</label>
+                <select id="settingLang" onchange="changeLanguage(this.value)">
+                    <option value="pt">Português (PT-BR)</option>
+                    <option value="en">English (EN)</option>
+                </select>
+            </div>
+            
+            <div class="form-group" style="margin-top: 15px;">
+                <label id="lblConfigTheme">Tema da Interface</label>
+                <select id="settingTheme" onchange="changeTheme(this.value)">
+                    <option value="cyber">Cyberpunk (Azul / Roxo)</option>
+                    <option value="br">Brasil Neon (Verde / Amarelo)</option>
+                    <option value="magma">Magma Neon (Laranja / Vermelho)</option>
+                </select>
+            </div>
 
-    </main>
+            <div class="modal-footer">
+                <button class="btn-close-modal" id="lblCloseModal" onclick="closeSettings()">Fechar</button>
+            </div>
+        </div>
+    </div>
 
-    <footer class="bg-gray-950 text-center py-4 text-xs text-gray-600 border-t border-gray-850 mt-12">
-        &copy; 2026 Modern Bookmarks. All rights reserved.
-    </footer>
+    <script>
+        const APP_VERSION = "2.4.0";
+        let booksData = {}, activeBookId = null, currentTheme = 'cyber', currentLang = 'pt';
+        let vis = { archiveList: false, trashList: false };
 
-    <script>
-        // Dicionário de Idiomas (Suporta LTR e RTL)
-        const translations = {
-            pt: { dir: "ltr", logo: "Marcadores", navDash: "Dashboard", navSettings: "Configurações", titleAdd: "Adicionar Novo Marcador", phTitle: "Título do site", phUrl: "https://exemplo.com", btnAdd: "Adicionar", filterAll: "Todos", filterActive: "Ativos", filterArchived: "Arquivados", titleSettings: "Sala de Configurações", labelLang: "Selecione o Idioma do Sistema", btnArchive: "Arquivar", btnUnarchive: "Desarquivar", btnDelete: "Excluir" },
-            en: { dir: "ltr", logo: "Bookmarks", navDash: "Dashboard", navSettings: "Settings", titleAdd: "Add New Bookmark", phTitle: "Site title", phUrl: "https://example.com", btnAdd: "Add", filterAll: "All", filterActive: "Active", filterArchived: "Archived", titleSettings: "Settings Room", labelLang: "Select System Language", btnArchive: "Archive", btnUnarchive: "Unarchive", btnDelete: "Delete" },
-            es: { dir: "ltr", logo: "Marcadores", navDash: "Panel", navSettings: "Ajustes", titleAdd: "Añadir Nuevo Marcador", phTitle: "Título del sitio", phUrl: "https://ejemplo.com", btnAdd: "Añadir", filterAll: "Todos", filterActive: "Activos", filterArchived: "Archivados", titleSettings: "Sala de Ajustes", labelLang: "Seleccione o Idioma del Sistema", btnArchive: "Archivar", btnUnarchive: "Desarchivar", btnDelete: "Eliminar" },
-            zh: { dir: "ltr", logo: "书签管理", navDash: "仪表板", navSettings: "设置中心", titleAdd: "添加新书签", phTitle: "网站标题", phUrl: "https://example.com", btnAdd: "添加", filterAll: "全部", filterActive: "有效", filterArchived: "已归档", titleSettings: "控制配置室", labelLang: "选择系统语言", btnArchive: "归档", btnUnarchive: "取消归档", btnDelete: "删除" },
-            ja: { dir: "ltr", logo: "ブックマーク", navDash: "ダッシュボード", navSettings: "設定ルーム", titleAdd: "新規ブックマーク追加", phTitle: "サイトタイトル", phUrl: "https://example.com", btnAdd: "追加", filterAll: "すべて", filterActive: "アクティブ", filterArchived: "アーカイブ済", titleSettings: "設定コントロール", labelLang: "システム言語の選択", btnArchive: "アーカイブ", btnUnarchive: "元に戻す", btnDelete: "削除" },
-            he: { dir: "rtl", logo: "סימניות", navDash: "לוח בקרה", navSettings: "הגדרות", titleAdd: "הוסף סימנייה חדשה", phTitle: "כותרת האתר", phUrl: "https://example.com", btnAdd: "הוסף", filterAll: "הכל", filterActive: "פעיל", filterArchived: "בארכיון", titleSettings: "חדר הגדרות", labelLang: "בחר שפת מערכת", btnArchive: "ארכיון", btnUnarchive: "החזר מארכיון", btnDelete: "מחק" },
-            ar: { dir: "rtl", logo: "إشارات مرجعية", navDash: "لوحة التحكم", navSettings: "الإعدادات", titleAdd: "إضافة إشارة مرجعية جديدة", phTitle: "عنوان الموقع", phUrl: "https://example.com", btnAdd: "إضافة", filterAll: "الكل", filterActive: "نشط", filterArchived: "مؤرشف", titleSettings: "غرفة الإعدادات", labelLang: "اختر لغة النظام", btnArchive: "أرشفة", btnUnarchive: "إلغاء الأرشفة", btnDelete: "حذف" }
-        };
+        const i18n = {
+            pt: {
+                newBook: "➕ Novo livro", archiveSec: "📁 Arquivados", trashSec: "🗑️ Lixeira",
+                settingsBtn: "⚙️ Configurações", exportBtn: "📥 Exportar Backup", importBtn: "📤 Importar Backup",
+                meta: "Meta Total", atual: "Página Atual", saveBtn: "Salvar Marcador",
+                historyTitle: "Últimas atualizações:", clearHistory: "Limpar", emptyTitle: "Nenhum livro ativo 📖",
+                emptyDesc: "Crie ou selecione um livro na barra lateral.", modalTitle: "⚙️ Configurações",
+                configLang: "Idioma / Language", configTheme: "Tema da Interface", closeModal: "Fechar",
+                alertMaxTrash: "Página atual maior que o total!", confirmHardDelete: "Excluir permanentemente \"{title}\"? Não dá para reverter.",
+                confirmImport: "Substituir dados atuais?", confirmClearHistory: "Limpar histórico?",
+                fallbackTitle: "Novo Livro", untitiled: "Sem Título", pages: "págs", invalidJson: "JSON inválido.",
+                themeCyber: "Cyberpunk (Azul / Roxo)", themeBr: "Brasil Neon (Verde / Amarelo)", themeMagma: "Magma Neon (Laranja / Vermelho)"
+            },
+            en: {
+                newBook: "➕ New Book", archiveSec: "📁 Archived", trashSec: "🗑️ Trash",
+                settingsBtn: "⚙️ Settings", exportBtn: "📥 Export data", importBtn: "📤 Import data",
+                meta: "Total Goal", atual: "Current Page", saveBtn: "Save Progress",
+                historyTitle: "Latest updates:", clearHistory: "Clear", emptyTitle: "No active book 📖",
+                emptyDesc: "Create or select a book in the sidebar.", modalTitle: "⚙️ Settings",
+                configLang: "Language / Idioma", configTheme: "Interface Theme", closeModal: "Close",
+                alertMaxTrash: "Current page exceeds total goal!", confirmHardDelete: "Permanently delete \"{title}\"? This cannot be undone.",
+                confirmImport: "Overwrite current data?", confirmClearHistory: "Clear log history?",
+                fallbackTitle: "New Book", untitiled: "Untitled", pages: "pgs", invalidJson: "Invalid JSON.",
+                themeCyber: "Cyberpunk (Blue / Purple)", themeBr: "Brazil Neon (Green / Yellow)", themeMagma: "Magma Neon (Orange / Red)"
+            }
+        };
 
-        // Estado da Aplicação
-        let currentLang = 'pt';
-        let currentLayout = 'grid'; // grid ou list
-        let currentFilter = 'all'; // all, active, archived
-        let bookmarks = [
-            { id: 1, title: 'Google', url: 'https://google.com', status: 'active' },
-            { id: 2, title: 'GitHub', url: 'https://github.com', status: 'active' },
-            { id: 3, title: 'MDN Web Docs', url: 'https://developer.mozilla.org', status: 'archived' }
-        ];
+        window.onload = function() {
+            if(window.history&&window.history.replaceState){window.history.replaceState(null,document.title,window.location.href)}
+            
+            currentTheme = localStorage.getItem('wt_theme') || 'cyber';
+            currentLang = localStorage.getItem('wt_lang') || 'pt';
+            
+            document.documentElement.setAttribute('data-theme', currentTheme);
+            document.getElementById('settingTheme').value = currentTheme;
+            document.getElementById('settingLang').value = currentLang;
 
-        // Alternar entre Abas (Dashboard vs Configurações)
-        function switchTab(tab) {
-            const dash = document.getElementById('tab-dashboard');
-            const settings = document.getElementById('tab-settings');
-            const btnDash = document.getElementById('btn-nav-dash');
-            const btnSettings = document.getElementById('btn-nav-settings');
+            const sideCollapsed = localStorage.getItem('wt_side_collapsed') === 'true';
+            if(sideCollapsed) document.getElementById('sidebar').classList.add('collapsed');
 
-            if (tab === 'dashboard') {
-                dash.classList.remove('hidden');
-                settings.classList.add('hidden');
-                btnDash.className = "px-4 py-2 rounded-lg bg-indigo-600 text-white font-medium shadow transition-all";
-                btnSettings.className = "px-4 py-2 rounded-lg text-gray-400 hover:bg-gray-700 hover:text-white font-medium transition-all";
-            } else {
-                dash.classList.add('hidden');
-                settings.classList.remove('hidden');
-                btnSettings.className = "px-4 py-2 rounded-lg bg-indigo-600 text-white font-medium shadow transition-all";
-                btnDash.className = "px-4 py-2 rounded-lg text-gray-400 hover:bg-gray-700 hover:text-white font-medium transition-all";
-            }
-        }
+            try {
+                const saved = localStorage.getItem('wt_b');
+                if (saved) {
+                    const parsed = JSON.parse(saved);
+                    if (typeof parsed === 'object' && parsed !== null) {
+                        booksData = parsed;
+                        migrateDataSchema();
+                    }
+                }
+            } catch (e) { console.error(e); }
 
-        // Alterar Layout (Grid vs Lista)
-        function changeLayout(layout) {
-            currentLayout = layout;
-            const btnGrid = document.getElementById('layout-grid');
-            const btnList = document.getElementById('layout-list');
-            
-            if(layout === 'grid') {
-                btnGrid.className = "p-2 text-xs font-semibold rounded bg-indigo-600 text-white";
-                btnList.className = "p-2 text-xs font-semibold rounded text-gray-400 hover:text-white";
-            } else {
-                btnList.className = "p-2 text-xs font-semibold rounded bg-indigo-600 text-white";
-                btnGrid.className = "p-2 text-xs font-semibold rounded text-gray-400 hover:text-white";
-            }
-            renderBookmarks();
-        }
+            if (Object.keys(booksData).length === 0) {
+                const id = 'b_'+Date.now();
+                booksData = {[id]: createStandardBookObject(id, i18n[currentLang].fallbackTitle)};
+                save();
+            }
 
-        // Filtrar Marcadores
-        function filterBookmarks(filter) {
-            currentFilter = filter;
-            ['all', 'active', 'archived'].forEach(f => {
-                const btn = document.getElementById(`filter-${f}`);
-                if(f === filter) {
-                    btn.className = "px-4 py-1.5 rounded-full text-xs font-semibold bg-indigo-500/20 text-indigo-400 border border-indigo-500/30";
-                } else {
-                    btn.className = "px-4 py-1.5 rounded-full text-xs font-semibold bg-gray-800 text-gray-400 hover:bg-gray-700";
-                }
-            });
-            renderBookmarks();
-        }
+            applyLocalization(); findActiveId(); renderSidebar(); loadActiveBook();
+        };
 
-        // CRUD: Adicionar
-        function addBookmark(e) {
-            e.preventDefault();
-            const titleInput = document.getElementById('input-title');
-            const urlInput = document.getElementById('input-url');
-            
-            const newBookmark = {
-                id: Date.now(),
-                title: titleInput.value,
-                url: urlInput.value,
-                status: 'active'
-            };
+        function applyLocalization() {
+            const t = i18n[currentLang];
+            document.getElementById('lblNewBook').innerText = t.newBook;
+            document.getElementById('lblSettingsBtn').innerText = t.settingsBtn;
+            document.getElementById('lblExportBtn').innerText = t.exportBtn;
+            document.getElementById('lblImportBtn').innerText = t.importBtn;
+            document.getElementById('lblMeta').innerText = t.meta;
+            document.getElementById('lblAtual').innerText = t.atual;
+            document.getElementById('lblSaveBtn').innerText = t.saveBtn;
+            document.getElementById('lblHistoryTitle').innerText = t.historyTitle;
+            document.getElementById('lblClearHistory').innerText = t.clearHistory;
+            document.getElementById('lblEmptyTitle').innerText = t.emptyTitle;
+            document.getElementById('lblEmptyDesc').innerText = t.emptyDesc;
+            document.getElementById('lblModalTitle').innerText = t.modalTitle;
+            document.getElementById('lblConfigLang').innerText = t.configLang;
+            document.getElementById('lblConfigTheme').innerText = t.configTheme;
+            document.getElementById('lblCloseModal').innerText = t.closeModal;
+            
+            // Atualiza os nomes das opções de temas dinamicamente no modal
+            const themeSelect = document.getElementById('settingTheme');
+            themeSelect.options[0].text = t.themeCyber;
+            themeSelect.options[1].text = t.themeBr;
+            themeSelect.options[2].text = t.themeMagma;
+        }
 
-            bookmarks.push(newBookmark);
-            titleInput.value = '';
-            urlInput.value = '';
-            renderBookmarks();
-        }
+        function openSettings() { document.getElementById('settingsModal').style.display = 'flex'; }
+        function closeSettings() { document.getElementById('settingsModal').style.display = 'none'; }
 
-        // CRUD: Arquivar / Desarquivar
-        function toggleArchive(id) {
-            bookmarks = bookmarks.map(b => {
-                if(b.id === id) {
-                    b.status = b.status === 'active' ? 'archived' : 'active';
-                }
-                return b;
-            });
-            renderBookmarks();
-        }
+        function changeTheme(themeValue) {
+            currentTheme = themeValue;
+            document.documentElement.setAttribute('data-theme', currentTheme);
+            localStorage.setItem('wt_theme', currentTheme);
+        }
 
-        // CRUD: Excluir
-        function deleteBookmark(id) {
-            bookmarks = bookmarks.filter(b => b.id !== id);
-            renderBookmarks();
-        }
+        function changeLanguage(langValue) {
+            currentLang = langValue;
+            localStorage.setItem('wt_lang', currentLang);
+            applyLocalization();
+            renderSidebar();
+            loadActiveBook();
+        }
 
-        // Mudar Idioma e atualizar interface (incluindo direção RTL)
-        function setLanguage(lang) {
-            currentLang = lang;
-            const t = translations[lang];
-            
-            // Atualiza Direção da Página (LTR vs RTL)
-            const root = document.getElementById('app-root');
-            root.setAttribute('dir', t.dir);
-            root.setAttribute('lang', lang);
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const isCollapsed = sidebar.classList.toggle('collapsed');
+            localStorage.setItem('wt_side_collapsed', isCollapsed);
+        }
+        
+        function save() { 
+            localStorage.setItem('wt_b', JSON.stringify(booksData));
+            localStorage.setItem('wt_v', APP_VERSION); 
+        }
 
-            // Atualiza Textos
-            document.getElementById('txt-logo').innerText = t.logo;
-            document.getElementById('txt-nav-dash').innerText = t.navDash;
-            document.getElementById('txt-nav-settings').innerText = t.navSettings;
-            document.getElementById('title-add').innerText = t.titleAdd;
-            document.getElementById('input-title').placeholder = t.phTitle;
-            document.getElementById('input-url').placeholder = t.phUrl;
-            document.getElementById('btn-add').innerText = t.btnAdd;
-            document.getElementById('filter-all').innerText = t.filterAll;
-            document.getElementById('filter-active').innerText = t.filterActive;
-            document.getElementById('filter-archived').innerText = t.filterArchived;
-            document.getElementById('title-settings').innerText = t.titleSettings;
-            document.getElementById('label-lang').innerText = t.labelLang;
+        function migrateDataSchema() {
+            let modified = false;
+            Object.keys(booksData).forEach(id => {
+                let b = booksData[id];
+                if (typeof b !== 'object') return;
+                if (b.archived === undefined) { b.archived = false; modified = true; }
+                if (b.trash === undefined) { b.trash = false; modified = true; }
+                if (b.deletedAt === undefined) { b.deletedAt = 0; modified = true; }
+                if (!b.history) { b.history = []; modified = true; }
+                if (!b.title) { b.title = i18n[currentLang].fallbackTitle; modified = true; }
+            });
+            if (modified) save();
+        }
 
-            // Destaca botão ativo na sala de configurações
-            document.querySelectorAll('.lang-btn').forEach(btn => {
-                if(btn.getAttribute('data-lang') === lang) {
-                    btn.classList.add('border-indigo-500', 'bg-indigo-600/10');
-                } else {
-                    btn.classList.remove('border-indigo-500', 'bg-indigo-600/10');
-                }
-            });
+        function createStandardBookObject(id, title) {
+            return { id, title: title||i18n[currentLang].fallbackTitle, total: 300, current: 0, history: [], archived: false, trash: false, deletedAt: 0 };
+        }
 
-            renderBookmarks();
-        }
+        function findActiveId() {
+            activeBookId = localStorage.getItem('wt_a');
+            if(!activeBookId || !booksData[activeBookId] || booksData[activeBookId].trash) {
+                activeBookId = Object.keys(booksData).find(k => !booksData[k].archived && !booksData[k].trash) || null;
+            }
+        }
 
-        // Renderizar os Cards na Tela
-        function renderBookmarks() {
-            const container = document.getElementById('bookmarks-container');
-            container.innerHTML = '';
+        function renderSidebar() {
+            const actContainer = document.getElementById('bookList');
+            const arcContainer = document.getElementById('archiveList');
+            const tshContainer = document.getElementById('trashList');
+            actContainer.innerHTML = ''; arcContainer.innerHTML = ''; tshContainer.innerHTML = '';
+            let cArc = 0, cTsh = 0;
 
-            // Configura Grid ou Lista
-            if(currentLayout === 'grid') {
-                container.className = "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4";
-            } else {
-                container.className = "flex flex-col space-y-3 w-full";
-            }
+            const list = Object.values(booksData).sort((a,b) => (b.deletedAt || 0) - (a.deletedAt || 0));
 
-            // Filtra os dados
-            const filtered = bookmarks.filter(b => {
-                if (currentFilter === 'all') return true;
-                return b.status === currentFilter;
-            });
+            list.forEach(b => {
+                if(b.trash) {
+                    tshContainer.innerHTML += `
+                        <div class="book-item">
+                            <span class="book-title-tab" style="text-decoration:line-through;color:var(--text-muted)">${b.title}</span>
+                            <div class="actions-tab">
+                                <button class="btn-action-tab" onclick="recoverBook(event,'${b.id}')" title="Restaurar">🔄</button>
+                                <button class="btn-action-tab del" onclick="hardDeleteBook(event,'${b.id}')" title="Excluir">❌</button>
+                            </div>
+                        </div>`;
+                    cTsh++;
+                } else if(b.archived) {
+                    arcContainer.innerHTML += `
+                        <div class="book-item ${b.id===activeBookId?'active':''}" onclick="switchBook('${b.id}')">
+                            <span class="book-title-tab">${b.title}</span>
+                            <div class="actions-tab">
+                                <button class="btn-action-tab" onclick="toggleArchive(event,'${b.id}')" title="Desarquivar">📥</button>
+                                <button class="btn-action-tab del" onclick="moveToTrash(event,'${b.id}')" title="Lixeira">🗑️</button>
+                            </div>
+                        </div>`;
+                    cArc++;
+                } else {
+                    actContainer.innerHTML += `
+                        <div class="book-item ${b.id===activeBookId?'active':''}" onclick="switchBook('${b.id}')">
+                            <span class="book-title-tab">${b.title}</span>
+                            <div class="actions-tab">
+                                <button class="btn-action-tab" onclick="toggleArchive(event,'${b.id}')" title="Arquivar">📦</button>
+                                <button class="btn-action-tab del" onclick="moveToTrash(event,'${b.id}')" title="Lixeira">🗑️</button>
+                            </div>
+                        </div>`;
+                }
+            });
+            document.getElementById('lblArchiveSec').innerText = `${i18n[currentLang].archiveSec} (${cArc})`;
+            document.getElementById('lblTrashSec').innerText = `${i18n[currentLang].trashSec} (${cTsh}/5)`;
+        }
 
-            const t = translations[currentLang];
+        function toggleSection(id, arrowId) {
+            vis[id] = !vis[id];
+            document.getElementById(id).style.display = vis[id] ? 'flex' : 'none';
+            document.getElementById(arrowId).innerText = vis[id] ? '▼' : '▶';
+        }
 
-            // Cria os elementos HTML
-            filtered.forEach(b => {
-                const card = document.createElement('div');
-                
-                // Estilos base mudam conforme layout
-                const layoutClasses = currentLayout === 'grid' 
-                    ? "bg-gray-850 p-5 rounded-xl border border-gray-700 flex flex-col justify-between h-40 shadow transition-all hover:border-gray-600" 
-                    : "bg-gray-850 p-4 rounded-xl border border-gray-700 flex justify-between items-center shadow transition-all hover:border-gray-600 w-full";
+        function toggleArchive(e, id) {
+            e.stopPropagation();
+            booksData[id].archived = !booksData[id].archived;
+            findActiveId(); save(); renderSidebar(); loadActiveBook();
+        }
 
-                card.className = layoutClasses;
+        function moveToTrash(e, id) {
+            e.stopPropagation();
+            const trashItems = Object.values(booksData).filter(b => b.trash).sort((a,b) => (a.deletedAt || 0) - (b.deletedAt || 0));
+            if(trashItems.length >= 5) {
+                delete booksData[trashItems[0].id];
+            }
+            booksData[id].trash = true;
+            booksData[id].deletedAt = Date.now();
+            findActiveId(); save(); renderSidebar(); loadActiveBook();
+        }
 
-                const isArchived = b.status === 'archived';
-                const archiveIcon = isArchived ? 'fa-box-open' : 'fa-box';
-                const archiveText = isArchived ? t.btnUnarchive : t.btnArchive;
+        function recoverBook(e, id) {
+            e.stopPropagation();
+            booksData[id].trash = false;
+            booksData[id].deletedAt = 0;
+            save(); renderSidebar(); loadActiveBook();
+        }
 
-                card.innerHTML = `
-                    <div class="${currentLayout === 'grid' ? 'mb-4' : ''} flex-1 overflow-hidden">
-                        <h3 class="font-bold text-white text-md truncate">${b.title}</h3>
-                        <a href="${b.url}" target="_blank" class="text-xs text-indigo-400 hover:underline truncate block mt-1">${b.url}</a>
-                        ${isArchived ? `<span class="inline-block mt-2 text-[10px] bg-yellow-500/10 text-yellow-500 px-2 py-0.5 rounded border border-yellow-500/20">${t.filterArchived}</span>` : ''}
-                    </div>
-                    <div class="flex items-center space-x-2 rtl:space-x-reverse justify-end ${currentLayout === 'grid' ? 'border-t border-gray-700/50 pt-3' : ''}">
-                        <button onclick="toggleArchive(${b.id})" title="${archiveText}" class="px-3 py-1.5 rounded bg-gray-750 hover:bg-gray-700 text-gray-300 text-xs flex items-center gap-1 transition-all">
-                            <i class="fa-solid ${archiveIcon}"></i> <span class="hidden sm:inline">${archiveText}</span>
-                        </button>
-                        <button onclick="deleteBookmark(${b.id})" title="${t.btnDelete}" class="px-3 py-1.5 rounded bg-red-900/20 hover:bg-red-900/40 text-red-400 text-xs flex items-center gap-1 transition-all">
-                            <i class="fa-solid fa-trash"></i> <span class="hidden sm:inline">${t.btnDelete}</span>
-                        </button>
-                    </div>
-                `;
-                container.appendChild(card);
-            });
-        }
+        function hardDeleteBook(e, id) {
+            e.stopPropagation();
+            const msg = i18n[currentLang].confirmHardDelete.replace("{title}", booksData[id].title);
+            if(confirm(msg)) {
+                delete booksData[id];
+                save(); renderSidebar(); loadActiveBook();
+            }
+        }
 
-        // Inicialização do App
-        setLanguage('pt');
-    </script>
+        function loadActiveBook() {
+            const card = document.getElementById('editorCard'), empty = document.getElementById('emptyState');
+            if(!activeBookId || !booksData[activeBookId] || booksData[activeBookId].trash) { card.style.display='none'; empty.style.display='block'; return; }
+            card.style.display='block'; empty.style.display='none';
+            const b = booksData[activeBookId];
+            document.getElementById('bookTitle').value = b.title;
+            document.getElementById('totalPages').value = b.total;
+            document.getElementById('currentPage').value = b.current;
+            updateUI(); renderHistory();
+        }
+
+        function switchBook(id) { activeBookId = id; localStorage.setItem('wt_a', id); renderSidebar(); loadActiveBook(); }
+
+        function createNewBook() {
+            const id = 'b_'+Date.now();
+            booksData[id] = createStandardBookObject(id, i18n[currentLang].fallbackTitle);
+            save(); switchBook(id);
+        }
+
+        function updateBookTitle(v) {
+            if(!activeBookId) return;
+            const t = v.trim() || i18n[currentLang].untitiled; booksData[activeBookId].title = t;
+            save(); renderSidebar();
+        }
+
+        function updateUI() {
+            if(!activeBookId) return;
+            const t = Math.max(parseInt(document.getElementById('totalPages').value)||1, 1);
+            const c = Math.max(parseInt(document.getElementById('currentPage').value)||0, 0);
+            let p = Math.min(Math.max((c/t)*100, 0), 100).toFixed(1);
+            document.getElementById('progressBar').style.width = p+'%';
+            document.getElementById('stats').innerText = `${c} / ${t} ${i18n[currentLang].pages} (${p}%)`;
+        }
+
+        function saveProgress() {
+            if(!activeBookId) return;
+            const t = parseInt(document.getElementById('totalPages').value)||1, c = parseInt(document.getElementById('currentPage').value)||0;
+            if(c > t) { alert(i18n[currentLang].alertMaxTrash); return; }
+            booksData[activeBookId].total = t; booksData[activeBookId].current = c;
+            let h = booksData[activeBookId].history || [];
+            const now = new Date(), dStr = now.toLocaleDateString()+' '+now.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+            if(h.length===0 || h[0].page!==c) { h.unshift({date:dStr, page:c}); booksData[activeBookId].history = h; }
+            save(); updateUI(); renderHistory();
+        }
+
+        function renderHistory() {
+            if(!activeBookId) return;
+            const h = booksData[activeBookId].history || [], container = document.getElementById('historyLog'); container.innerHTML = '';
+            if(h.length===0) { container.innerHTML = '-'; return; }
+            h.slice(0,3).forEach(i => { container.innerHTML += `<div class="history-item"><span>Pág / Pg ${i.page}</span><span>${i.date}</span></div>`; });
+        }
+
+        function clearBookHistory() {
+            if(activeBookId && confirm(i18n[currentLang].confirmClearHistory)) { booksData[activeBookId].history = []; save(); renderHistory(); }
+        }
+
+        function exportBackup() {
+            if(Object.keys(booksData).length===0) return;
+            const a = document.createElement('a');
+            a.setAttribute("href", "data:text/json;charset=utf-8,"+encodeURIComponent(JSON.stringify(booksData)));
+            a.setAttribute("download", `backup_escr_${Date.now()}.json`); document.body.appendChild(a); a.click(); a.remove();
+        }
+
+        function importBackup(e) {
+            const f = e.target.files[0]; if(!f) return;
+            const r = new FileReader();
+            r.onload = function(evt) {
+                try {
+                    const data = JSON.parse(evt.target.result);
+                    if(typeof data === 'object' && confirm(i18n[currentLang].confirmImport)) {
+                        booksData = data; migrateDataSchema(); save(); findActiveId(); renderSidebar(); loadActiveBook();
+                    }
+                } catch(err) { alert(i18n[currentLang].invalidJson); }
+            };
+            r.readAsText(f); e.target.value = '';
+        }
+
+        document.getElementById('totalPages').addEventListener('input', updateUI);
+        document.getElementById('currentPage').addEventListener('input', updateUI);
+    </script>
 </body>
 </html>
