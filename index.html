@@ -1,581 +1,302 @@
-<script>
-        const APP_VERSION = "4.6.0";
-        let booksData = {}, activeBookId = null, currentTheme = 'megamix', currentLang = 'pt', profileName = "Autor Padrão";
-        let vis = { archiveList: false, trashList: false };
+<!DOCTYPE html>
+<html lang="pt-BR" dir="ltr" id="app-root">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Modern Bookmark Manager</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-gray-900 text-gray-100 font-sans min-h-screen flex flex-col transition-colors duration-300">
 
-        let fxInterval = null;
-        const canvas = document.getElementById('fxCanvas');
-        const ctx = canvas.getContext('2d');
-        let particles = [];
+    <header class="bg-gray-800 border-b border-gray-700 px-6 py-4 flex justify-between items-center shadow-lg">
+        <div class="flex items-center space-x-3 rtl:space-x-reverse">
+            <i class="fa-solid fa-bookmark text-indigo-500 text-2xl"></i>
+            <span class="text-xl font-bold tracking-wider" id="txt-logo">Bookmarks</span>
+        </div>
+        <nav class="flex space-x-2 rtl:space-x-reverse">
+            <button onclick="switchTab('dashboard')" id="btn-nav-dash" class="px-4 py-2 rounded-lg bg-indigo-600 text-white font-medium shadow transition-all">
+                <i class="fa-solid fa-layer-group mr-2 rtl:ml-2 rtl:mr-0"></i><span id="txt-nav-dash">Dashboard</span>
+            </button>
+            <button onclick="switchTab('settings')" id="btn-nav-settings" class="px-4 py-2 rounded-lg text-gray-400 hover:bg-gray-700 hover:text-white font-medium transition-all">
+                <i class="fa-solid fa-gear mr-2 rtl:ml-2 rtl:mr-0"></i><span id="txt-nav-settings">Configurações</span>
+            </button>
+        </nav>
+    </header>
 
-        // Object i18n finalizado e estendido para todas as linguagens listadas na UI
-        const i18n = {
-            pt: {
-                newBook: "➕ Novo livro", archiveSec: "Arquivados", trashSec: "Lixeira",
-                settingsBtn: "Perfil / Configurações", exportBtn: "📥 Exportar Tudo", importBtn: "📤 Importar Tudo",
-                meta: "Meta Total", atual: "Página Atual", saveBtn: "Salvar Marcador",
-                historyTitle: "Últimas atualizações:", clearHistory: "Limpar", emptyTitle: "Nenhum livro ativo 📖",
-                emptyDesc: "Crie ou selecione um livro na barra lateral.", modalTitle: "👤 Perfil do Escritor",
-                configLang: "Idioma / Language", configTheme: "Tema da Interface", closeModal: "Fechar",
-                alertMaxTrash: "Página atual maior que o total!", confirmHardDelete: "Excluir permanentemente \"{title}\"? Não dá para reverter.",
-                confirmImport: "Substituir livros antigos por este backup?", confirmClearHistory: "Limpar histórico?",
-                fallbackTitle: "Novo Livro", untitled: "Sem Título", pages: "págs", invalidJson: "JSON inválido.",
-                labelPage: "Pág", labelProfile: "Perfil", changeProfile: "Mudar Nome do Perfil",
-                linkDevice: "Vincular a outros dispositivos", expProf: "📥 Exportar este Perfil", impProf: "📤 Importar Perfil Externo",
-                confirmImportProf: "Deseja importar e substituir seu espaço pelo perfil de \"{name}\"?", invalidProf: "Formato de perfil inválido.", errFile: "Erro ao carregar o arquivo.",
-                popUpBtn: "🔲 Abrir em Pop-up"
-            },
-            en: {
-                newBook: "➕ New Book", archiveSec: "Archived", trashSec: "Trash",
-                settingsBtn: "Profile / Settings", exportBtn: "📥 Export All", importBtn: "📤 Import All",
-                meta: "Total Goal", atual: "Current Page", saveBtn: "Save Progress",
-                historyTitle: "Latest updates:", clearHistory: "Clear", emptyTitle: "No active book 📖",
-                emptyDesc: "Create or select a book in the sidebar.", modalTitle: "👤 Writer Profile",
-                configLang: "Language / Idioma", configTheme: "Interface Theme", closeModal: "Close",
-                alertMaxTrash: "Current page exceeds total goal!", confirmHardDelete: "Permanently delete \"{title}\"? This cannot be undone.",
-                confirmImport: "Overwrite current books with this backup?", confirmClearHistory: "Clear log history?",
-                fallbackTitle: "New Book", untitled: "Untitled", pages: "pgs", invalidJson: "Invalid JSON.",
-                labelPage: "Pg", labelProfile: "Profile", changeProfile: "Change Profile Name",
-                linkDevice: "Link to other devices", expProf: "📥 Export this Profile", impProf: "📤 Import External Profile",
-                confirmImportProf: "Do you want to import and replace your workspace with \"{name}\"'s profile?", invalidProf: "Invalid profile format.", errFile: "Error loading file.",
-                popUpBtn: "🔲 Open in Pop-up"
-            },
-            es: {
-                newBook: "➕ Nuevo Libro", archiveSec: "Archivados", trashSec: "Papelera",
-                settingsBtn: "Perfil / Configuración", exportBtn: "📥 Exportar Todo", importBtn: "📤 Importar Todo",
-                meta: "Meta Total", atual: "Página Actual", saveBtn: "Guardar Progreso",
-                historyTitle: "Últimas actualizaciones:", clearHistory: "Limpiar", emptyTitle: "Ningún libro activo 📖",
-                emptyDesc: "Crea o selecciona un libro en la barra lateral.", modalTitle: "👤 Perfil del Escritor",
-                configLang: "Idioma / Language", configTheme: "Tema de la Interfaz", closeModal: "Cerrar",
-                alertMaxTrash: "¡La página actual supera la meta total!", confirmHardDelete: "¿Eliminar permanentemente \"{title}\"? No se puede revertir.",
-                confirmImport: "¿Sobrescribir los libros actuales con esta copia de seguridad?", confirmClearHistory: "¿Limpiar el historial?",
-                fallbackTitle: "Nuevo Libro", untitled: "Sin Título", pages: "pags", invalidJson: "JSON inválido.",
-                labelPage: "Pág", labelProfile: "Perfil", changeProfile: "Cambiar Nombre del Perfil",
-                linkDevice: "Vincular a otros dispositivos", expProf: "📥 Exportar este Perfil", impProf: "📤 Importar Perfil Externo",
-                confirmImportProf: "¿Desea importar y reemplazar su espacio con el perfil de \"{name}\"?", invalidProf: "Formato de perfil no válido.", errFile: "Error al cargar el archivo.",
-                popUpBtn: "🔲 Abrir en Pop-up"
-            },
-            zh: {
-                newBook: "➕ 新书", archiveSec: "已归档", trashSec: "回收站",
-                settingsBtn: "个人资料 / 设置", exportBtn: "📥 导出全部", importBtn: "📤 导入全部",
-                meta: "总目标页", atual: "当前页", saveBtn: "保存进度",
-                historyTitle: "最新更新:", clearHistory: "清空", emptyTitle: "无活动书目 📖",
-                emptyDesc: "在侧边栏创建或选择一本书。", modalTitle: "👤 作家个人资料",
-                configLang: "语言 / Language", configTheme: "界面主题", closeModal: "关闭",
-                alertMaxTrash: "当前页数超过了总目标！", confirmHardDelete: "永久删除 \"{title}\"？此操作无法撤销。",
-                confirmImport: "用此备份覆盖当前书籍吗？", confirmClearHistory: "清空历史日志？",
-                fallbackTitle: "新书", untitled: "无标题", pages: "页", invalidJson: "无效的 JSON。",
-                labelPage: "页", labelProfile: "属性", changeProfile: "修改分析文件名",
-                linkDevice: "链接到其他设备", expProf: "📥 仅导出此配置", impProf: "📤 导入外部配置",
-                confirmImportProf: "是否要导入并用 \"{name}\" 的配置替换当前工作区？", invalidProf: "无效的配置文件格式。", errFile: "加载文件时出错。",
-                popUpBtn: "🔲 弹窗中打开"
-            },
-            ar: {
-                newBook: "➕ كتاب جديد", archiveSec: "المؤرشفة", trashSec: "سلة المهملات",
-                settingsBtn: "الملف الشخصي / الإعدادات", exportBtn: "📥 تصدير الكل", importBtn: "📤 استيراد الكل",
-                meta: "الهدف الإجمالي", atual: "الصفحة الحالية", saveBtn: "حفظ التقدم",
-                historyTitle: "آخر التحديثات:", clearHistory: "مسح", emptyTitle: "لا يوجد كتاب نشط 📖",
-                emptyDesc: "قم بإنشاء أو تحديد كتاب من شريط الأدوات الجانبي.", modalTitle: "👤 ملف الكاتب الشخصي",
-                configLang: "اللغة / Language", configTheme: "مظهر الواجهة", closeModal: "إغلاق",
-                alertMaxTrash: "الصفحة الحالية تتجاوز الهدف الإجمالي!", confirmHardDelete: "هل تريد حذف \"{title}\" نهائيًا؟ لا يمكن التراجع عن هذا الإجراء.",
-                confirmImport: "هل تريد استبدال الكتب الحالية بنسخة الاحتياط هذه؟", confirmClearHistory: "هل تريد مسح سجل التحديثات؟",
-                fallbackTitle: "كتاب جديد", untitled: "بلا عنوان", pages: "صفحات", invalidJson: "ملف JSON غير صالح.",
-                labelPage: "صفحة", labelProfile: "الملف الشخصي", changeProfile: "تغيير اسم الملف الشخصي",
-                linkDevice: "ربط بأجهزة أخرى", expProf: "📥 تصدير هذا الملف", impProf: "📤 استيراد ملف خارجي",
-                confirmImportProf: "هل تريد استيراد واستبدال مساحة العمل بملف \"{name}\"؟", invalidProf: "صيغة الملف الشخصي غير صالحة.", errFile: "خطأ أثناء تحميل الملف.",
-                popUpBtn: "🔲 فتح في نافذة منبثقة"
-            },
-            he: {
-                newBook: "➕ ספר חדש", archiveSec: "בארכיון", trashSec: "אשפה",
-                settingsBtn: "פרופיל / הגדרות", exportBtn: "📥 ייצא הכל", importBtn: "📤 ייבא הכל",
-                meta: "יעד כולל", atual: "עמוד נוכחי", saveBtn: "שמור התקדמות",
-                historyTitle: "עדכונים אחרונים:", clearHistory: "נקה", emptyTitle: "אין ספר פעיל 📖",
-                emptyDesc: "צור או בחר ספר בסרגל הצידי.", modalTitle: "👤 פרופיל סופר",
-                configLang: "שפה / Language", configTheme: "ערכת נושא", closeModal: "סגור",
-                alertMaxTrash: "העמוד הנוכחי עובר את היעד הכולל!", confirmHardDelete: "למחוק לצמיתות את \"{title}\"? לא ניתן לבטל פעולה זו.",
-                confirmImport: "לדרוס את הספרים הקיימים עם גיבוי זה?", confirmClearHistory: "לנקות את ההיסטוריה?",
-                fallbackTitle: "ספר חדש", untitled: "ללא כותרת", pages: "עמ'", invalidJson: "קובץ JSON לא תקין.",
-                labelPage: 'עמ\'', labelProfile: "פרופיל", changeProfile: "שנה שם פרופיל",
-                linkDevice: "קשר למכשירים אחרים", expProf: "📥 ייצא פרופil זה", impProf: "📤 ייבא פרופיל חיצוני",
-                confirmImportProf: "האם ברצונך לייבא ולהחליף את מרחב העבודה בפרופיל של \"{name}\"?", invalidProf: "פורמט פרופיל לא תקין.", errFile: "שגיאה בטעינת הקובץ.",
-                popUpBtn: "🔲 פתח בחלון קופץ"
-            }
+    <main class="flex-1 p-6 max-w-6xl w-full mx-auto">
+        
+        <section id="tab-dashboard" class="space-y-6">
+            <div class="bg-gray-800 p-6 rounded-xl border border-gray-700 shadow-md">
+                <h2 class="text-lg font-semibold mb-4 text-indigo-400" id="title-add">Adicionar Novo Marcador</h2>
+                <form id="bookmark-form" onsubmit="addBookmark(event)" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <input type="text" id="input-title" required placeholder="Título do site" class="bg-gray-700 border border-gray-600 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-indigo-500">
+                    <input type="url" id="input-url" required placeholder="https://exemplo.com" class="bg-gray-700 border border-gray-600 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-indigo-500">
+                    <button type="submit" class="bg-indigo-600 hover:bg-indigo-500 text-white font-medium py-2.5 px-6 rounded-lg transition-colors flex items-center justify-center space-x-2">
+                        <i class="fa-solid fa-plus"></i> <span id="btn-add">Adicionar</span>
+                    </button>
+                </form>
+            </div>
+
+            <div class="flex flex-wrap justify-between items-center gap-4 border-b border-gray-700 pb-4">
+                <div class="flex space-x-2 rtl:space-x-reverse" id="filter-container">
+                    <button onclick="filterBookmarks('all')" id="filter-all" class="px-4 py-1.5 rounded-full text-xs font-semibold bg-indigo-500/20 text-indigo-400 border border-indigo-500/30">Todos</button>
+                    <button onclick="filterBookmarks('active')" id="filter-active" class="px-4 py-1.5 rounded-full text-xs font-semibold bg-gray-850 text-gray-400 hover:bg-gray-800">Ativos</button>
+                    <button onclick="filterBookmarks('archived')" id="filter-archived" class="px-4 py-1.5 rounded-full text-xs font-semibold bg-gray-850 text-gray-400 hover:bg-gray-800">Arquivados</button>
+                </div>
+                
+                <div class="flex items-center space-x-1 bg-gray-800 p-1 rounded-lg border border-gray-700">
+                    <button onclick="changeLayout('grid')" id="layout-grid" class="p-2 rounded bg-indigo-600 text-white"><i class="fa-solid fa-grid-2"></i> Grid</button>
+                    <button onclick="changeLayout('list')" id="layout-list" class="p-2 rounded text-gray-400 hover:text-white"><i class="fa-solid fa-list"></i> Lista</button>
+                </div>
+            </div>
+
+            <div id="bookmarks-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                </div>
+        </section>
+
+        <section id="tab-settings" class="hidden space-y-6">
+            <div class="bg-gray-800 p-8 rounded-xl border border-gray-700 shadow-md max-w-2xl mx-auto">
+                <div class="flex items-center space-x-3 rtl:space-x-reverse border-b border-gray-700 pb-4 mb-6">
+                    <i class="fa-solid fa-sliders text-indigo-500 text-2xl"></i>
+                    <h2 class="text-xl font-bold" id="title-settings">Sala de Configurações</h2>
+                </div>
+
+                <div class="space-y-3">
+                    <label class="block text-sm font-medium text-gray-400" id="label-lang">Selecione o Idioma do Sistema</label>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <button onclick="setLanguage('pt')" class="lang-btn flex items-center justify-between p-3 rounded-lg border border-gray-700 bg-gray-850 hover:border-indigo-500 transition-all" data-lang="pt">
+                            <span>Português</span><span class="text-xs text-gray-500">PT-BR</span>
+                        </button>
+                        <button onclick="setLanguage('en')" class="lang-btn flex items-center justify-between p-3 rounded-lg border border-gray-700 bg-gray-850 hover:border-indigo-500 transition-all" data-lang="en">
+                            <span>English</span><span class="text-xs text-gray-500">EN</span>
+                        </button>
+                        <button onclick="setLanguage('es')" class="lang-btn flex items-center justify-between p-3 rounded-lg border border-gray-700 bg-gray-850 hover:border-indigo-500 transition-all" data-lang="es">
+                            <span>Español</span><span class="text-xs text-gray-500">ES</span>
+                        </button>
+                        <button onclick="setLanguage('zh')" class="lang-btn flex items-center justify-between p-3 rounded-lg border border-gray-700 bg-gray-850 hover:border-indigo-500 transition-all" data-lang="zh">
+                            <span>简体中文</span><span class="text-xs text-gray-500">ZH</span>
+                        </button>
+                        <button onclick="setLanguage('ja')" class="lang-btn flex items-center justify-between p-3 rounded-lg border border-gray-700 bg-gray-850 hover:border-indigo-500 transition-all" data-lang="ja">
+                            <span>日本語</span><span class="text-xs text-gray-500">JA</span>
+                        </button>
+                        <button onclick="setLanguage('he')" class="lang-btn flex items-center justify-between p-3 rounded-lg border border-gray-700 bg-gray-850 hover:border-indigo-500 transition-all" data-lang="he">
+                            <span>עברית</span><span class="text-xs text-gray-500">HE (RTL)</span>
+                        </button>
+                        <button onclick="setLanguage('ar')" class="lang-btn flex items-center justify-between p-3 rounded-lg border border-gray-700 bg-gray-850 hover:border-indigo-500 transition-all" data-lang="ar">
+                            <span>العربية</span><span class="text-xs text-gray-500">AR (RTL)</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <footer class="bg-gray-950 text-center py-4 text-xs text-gray-600 border-t border-gray-850 mt-12">
+        &copy; 2026 Modern Bookmarks. All rights reserved.
+    </footer>
+
+    <script>
+        // Dicionário de Idiomas (Suporta LTR e RTL)
+        const translations = {
+            pt: { dir: "ltr", logo: "Marcadores", navDash: "Dashboard", navSettings: "Configurações", titleAdd: "Adicionar Novo Marcador", phTitle: "Título do site", phUrl: "https://exemplo.com", btnAdd: "Adicionar", filterAll: "Todos", filterActive: "Ativos", filterArchived: "Arquivados", titleSettings: "Sala de Configurações", labelLang: "Selecione o Idioma do Sistema", btnArchive: "Arquivar", btnUnarchive: "Desarquivar", btnDelete: "Excluir" },
+            en: { dir: "ltr", logo: "Bookmarks", navDash: "Dashboard", navSettings: "Settings", titleAdd: "Add New Bookmark", phTitle: "Site title", phUrl: "https://example.com", btnAdd: "Add", filterAll: "All", filterActive: "Active", filterArchived: "Archived", titleSettings: "Settings Room", labelLang: "Select System Language", btnArchive: "Archive", btnUnarchive: "Unarchive", btnDelete: "Delete" },
+            es: { dir: "ltr", logo: "Marcadores", navDash: "Panel", navSettings: "Ajustes", titleAdd: "Añadir Nuevo Marcador", phTitle: "Título del sitio", phUrl: "https://ejemplo.com", btnAdd: "Añadir", filterAll: "Todos", filterActive: "Activos", filterArchived: "Archivados", titleSettings: "Sala de Ajustes", labelLang: "Seleccione o Idioma del Sistema", btnArchive: "Archivar", btnUnarchive: "Desarchivar", btnDelete: "Eliminar" },
+            zh: { dir: "ltr", logo: "书签管理", navDash: "仪表板", navSettings: "设置中心", titleAdd: "添加新书签", phTitle: "网站标题", phUrl: "https://example.com", btnAdd: "添加", filterAll: "全部", filterActive: "有效", filterArchived: "已归档", titleSettings: "控制配置室", labelLang: "选择系统语言", btnArchive: "归档", btnUnarchive: "取消归档", btnDelete: "删除" },
+            ja: { dir: "ltr", logo: "ブックマーク", navDash: "ダッシュボード", navSettings: "設定ルーム", titleAdd: "新規ブックマーク追加", phTitle: "サイトタイトル", phUrl: "https://example.com", btnAdd: "追加", filterAll: "すべて", filterActive: "アクティブ", filterArchived: "アーカイブ済", titleSettings: "設定コントロール", labelLang: "システム言語の選択", btnArchive: "アーカイブ", btnUnarchive: "元に戻す", btnDelete: "削除" },
+            he: { dir: "rtl", logo: "סימניות", navDash: "לוח בקרה", navSettings: "הגדרות", titleAdd: "הוסף סימנייה חדשה", phTitle: "כותרת האתר", phUrl: "https://example.com", btnAdd: "הוסף", filterAll: "הכל", filterActive: "פעיל", filterArchived: "בארכיון", titleSettings: "חדר הגדרות", labelLang: "בחר שפת מערכת", btnArchive: "ארכיון", btnUnarchive: "החזר מארכיון", btnDelete: "מחק" },
+            ar: { dir: "rtl", logo: "إشارات مرجعية", navDash: "لوحة التحكم", navSettings: "الإعدادات", titleAdd: "إضافة إشارة مرجعية جديدة", phTitle: "عنوان الموقع", phUrl: "https://example.com", btnAdd: "إضافة", filterAll: "الكل", filterActive: "نشط", filterArchived: "مؤرشف", titleSettings: "غرفة الإعدادات", labelLang: "اختر لغة النظام", btnArchive: "أرشفة", btnUnarchive: "إلغاء الأرشفة", btnDelete: "حذف" }
         };
 
-        /* ==========================================================================
-           INICIALIZAÇÃO E STORAGE
-           ========================================================================== */
-        window.addEventListener('DOMContentLoaded', () => {
-            loadData();
-            applyTheme(currentTheme);
-            applyLanguage(currentLang);
-            renderSidebar();
-            renderMainCard();
-            setupCanvasSize();
-            window.addEventListener('resize', setupCanvasSize);
-        });
+        // Estado da Aplicação
+        let currentLang = 'pt';
+        let currentLayout = 'grid'; // grid ou list
+        let currentFilter = 'all'; // all, active, archived
+        let bookmarks = [
+            { id: 1, title: 'Google', url: 'https://google.com', status: 'active' },
+            { id: 2, title: 'GitHub', url: 'https://github.com', status: 'active' },
+            { id: 3, title: 'MDN Web Docs', url: 'https://developer.mozilla.org', status: 'archived' }
+        ];
 
-        function saveData() {
-            localStorage.setItem('writingTracker_books', JSON.stringify(booksData));
-            localStorage.setItem('writingTracker_theme', currentTheme);
-            localStorage.setItem('writingTracker_lang', currentLang);
-            localStorage.setItem('writingTracker_profile', profileName);
-        }
+        // Alternar entre Abas (Dashboard vs Configurações)
+        function switchTab(tab) {
+            const dash = document.getElementById('tab-dashboard');
+            const settings = document.getElementById('tab-settings');
+            const btnDash = document.getElementById('btn-nav-dash');
+            const btnSettings = document.getElementById('btn-nav-settings');
 
-        function loadData() {
-            booksData = JSON.parse(localStorage.getItem('writingTracker_books')) || {};
-            currentTheme = localStorage.getItem('writingTracker_theme') || 'megamix';
-            currentLang = localStorage.getItem('writingTracker_lang') || 'pt';
-            profileName = localStorage.getItem('writingTracker_profile') || 'Autor Padrão';
-            
-            document.getElementById('settingTheme').value = currentTheme;
-            document.getElementById('settingLang').value = currentLang;
-            document.getElementById('profileNameInput').value = profileName;
-            document.getElementById('currentProfileName').innerText = `${i18n[currentLang].labelProfile}: ${profileName}`;
-        }
-
-        /* ==========================================================================
-           GERENCIAMENTO DE LIVROS E REATIVIDADE
-           ========================================================================== */
-        function createNewBook() {
-            const id = 'book_' + Date.now();
-            booksData[id] = {
-                id: id,
-                title: i18n[currentLang].fallbackTitle,
-                totalPages: 100,
-                currentPage: 0,
-                status: 'active', // active, archived, trash
-                history: []
-            };
-            activeBookId = id;
-            saveData();
-            renderSidebar();
-            renderMainCard();
-        }
-
-        function selectBook(id) {
-            if (booksData[id] && booksData[id].status !== 'trash') {
-                activeBookId = id;
-                renderSidebar();
-                renderMainCard();
-            }
-        }
-
-        function updateBookTitle(value) {
-            if (!activeBookId || !booksData[activeBookId]) return;
-            booksData[activeBookId].title = value.trim() || i18n[currentLang].untitled;
-            saveData();
-            
-            // Atualiza o item textual na barra lateral sem re-renderizar todo o DOM (evita quebra de foco)
-            const item = document.querySelector(`.book-item[data-id="${activeBookId}"] .book-title-tab`);
-            if (item) item.innerText = booksData[activeBookId].title;
-        }
-
-        function saveProgress() {
-            if (!activeBookId || !booksData[activeBookId]) return;
-            const book = booksData[activeBookId];
-            const totalInput = parseInt(document.getElementById('totalPages').value) || 0;
-            const currentInput = parseInt(document.getElementById('currentPage').value) || 0;
-
-            if (currentInput > totalInput) {
-                alert(i18n[currentLang].alertMaxTrash);
-                return;
-            }
-
-            book.totalPages = totalInput;
-            book.currentPage = currentInput;
-
-            const timeStr = new Date().toLocaleTimeString(currentLang, { hour: '2-digit', minute: '2-digit' });
-            const logEntry = `${timeStr} -> ${i18n[currentLang].labelPage} ${currentInput} / ${totalInput}`;
-            book.history.unshift(logEntry);
-
-            saveData();
-            renderMainCard();
-        }
-
-        function clearBookHistory() {
-            if (!activeBookId || !booksData[activeBookId]) return;
-            if (confirm(i18n[currentLang].confirmClearHistory)) {
-                booksData[activeBookId].history = [];
-                saveData();
-                renderMainCard();
-            }
-        }
-
-        /* ==========================================================================
-           SISTEMA DE ARQUIVO E LIXEIRA (MÁXIMO 5)
-           ========================================================================== */
-        function moveBookStatus(id, newStatus) {
-            if (!booksData[id]) return;
-
-            if (newStatus === 'trash') {
-                const trashCount = Object.values(booksData).filter(b => b.status === 'trash').length;
-                if (trashCount >= 5) {
-                    // Remove o mais antigo da lixeira para abrir espaço
-                    const oldestTrash = Object.values(booksData)
-                        .filter(b => b.status === 'trash')
-                        .sort((a, b) => parseFloat(a.id.split('_')[1]) - parseFloat(b.id.split('_')[1]))[0];
-                    if (oldestTrash) delete booksData[oldestTrash.id];
-                }
-            }
-
-            booksData[id].status = newStatus;
-            if (activeBookId === id && newStatus !== 'active') activeBookId = null;
-
-            saveData();
-            renderSidebar();
-            renderMainCard();
-        }
-
-        function hardDeleteBook(id) {
-            if (!booksData[id]) return;
-            const msg = i18n[currentLang].confirmHardDelete.replace("{title}", booksData[id].title);
-            if (confirm(msg)) {
-                delete booksData[id];
-                saveData();
-                renderSidebar();
-                renderMainCard();
-            }
-        }
-
-        /* ==========================================================================
-           RENDERIZADORES DE LAYOUT
-           ========================================================================== */
-        function renderSidebar() {
-            const listContainer = document.getElementById('bookList');
-            const archiveContainer = document.getElementById('archiveList');
-            const trashContainer = document.getElementById('trashList');
-
-            listContainer.innerHTML = '';
-            archiveContainer.innerHTML = '';
-            trashContainer.innerHTML = '';
-
-            let actCount = 0, arcCount = 0, trshCount = 0;
-
-            Object.values(booksData).forEach(book => {
-                const item = document.createElement('div');
-                item.className = `book-item ${book.id === activeBookId ? 'active' : ''}`;
-                item.setAttribute('data-id', book.id);
-
-                if (book.status === 'active') {
-                    actCount++;
-                    item.onclick = () => selectBook(book.id);
-                    item.innerHTML = `
-                        <span class="book-title-tab">${book.title}</span>
-                        <div class="actions-tab">
-                            <button class="btn-action-tab" onclick="event.stopPropagation(); moveBookStatus('${book.id}', 'archived')" title="Arquivar">📦</button>
-                            <button class="btn-action-tab del" onclick="event.stopPropagation(); moveBookStatus('${book.id}', 'trash')" title="Lixeira">🗑️</button>
-                        </div>
-                    `;
-                    listContainer.appendChild(item);
-                } else if (book.status === 'archived') {
-                    arcCount++;
-                    item.innerHTML = `
-                        <span class="book-title-tab" style="width:65%">${book.title}</span>
-                        <div class="actions-tab" style="display:flex;">
-                            <button class="btn-action-tab" onclick="moveBookStatus('${book.id}', 'active')" title="Desarquivar">📤</button>
-                            <button class="btn-action-tab del" onclick="moveBookStatus('${book.id}', 'trash')" title="Lixeira">🗑️</button>
-                        </div>
-                    `;
-                    archiveContainer.appendChild(item);
-                } else if (book.status === 'trash') {
-                    trshCount++;
-                    item.innerHTML = `
-                        <span class="book-title-tab" style="width:65%">${book.title}</span>
-                        <div class="actions-tab" style="display:flex;">
-                            <button class="btn-action-tab" onclick="moveBookStatus('${book.id}', 'active')" title="Restaurar">🔄</button>
-                            <button class="btn-action-tab del" onclick="hardDeleteBook('${book.id}')" title="Excluir Definitivo">❌</button>
-                        </div>
-                    `;
-                    trashContainer.appendChild(item);
-                }
-            });
-
-            document.getElementById('lblArchiveSec').innerText = `${i18n[currentLang].archiveSec} (${arcCount})`;
-            document.getElementById('lblTrashSec').innerText = `${i18n[currentLang].trashSec} (${trshCount}/5)`;
-        }
-
-        function renderMainCard() {
-            const card = document.getElementById('editorCard');
-            const emptyState = document.getElementById('emptyState');
-
-            if (!activeBookId || !booksData[activeBookId]) {
-                card.style.display = 'none';
-                emptyState.style.display = 'block';
-                return;
-            }
-
-            card.style.display = 'block';
-            emptyState.style.display = 'none';
-
-            const book = booksData[activeBookId];
-            document.getElementById('bookTitle').value = book.title;
-            document.getElementById('totalPages').value = book.totalPages;
-            document.getElementById('currentPage').value = book.currentPage;
-
-            // Progresso Matemático
-            const pct = book.totalPages > 0 ? Math.min(100, Math.round((book.currentPage / book.totalPages) * 100)) : 0;
-            document.getElementById('progressBar').style.width = `${pct}%`;
-            document.getElementById('stats').innerText = `${book.currentPage}/${book.totalPages} ${i18n[currentLang].pages} (${pct}%)`;
-
-            // Histórico Log
-            const logContainer = document.getElementById('historyLog');
-            logContainer.innerHTML = '';
-            book.history.slice(0, 10).forEach(log => {
-                const el = document.createElement('div');
-                el.className = 'history-item';
-                el.innerText = log;
-                logContainer.appendChild(el);
-            });
-        }
-
-        function toggleSection(listId, arrowId) {
-            vis[listId] = !vis[listId];
-            const listEl = document.getElementById(listId);
-            const arrowEl = document.getElementById(arrowId);
-            
-            if (vis[listId]) {
-                listEl.classList.add('visible');
-                arrowEl.innerText = '▼';
+            if (tab === 'dashboard') {
+                dash.classList.remove('hidden');
+                settings.classList.add('hidden');
+                btnDash.className = "px-4 py-2 rounded-lg bg-indigo-600 text-white font-medium shadow transition-all";
+                btnSettings.className = "px-4 py-2 rounded-lg text-gray-400 hover:bg-gray-700 hover:text-white font-medium transition-all";
             } else {
-                listEl.classList.remove('visible');
-                arrowEl.innerText = '▶';
+                dash.classList.add('hidden');
+                settings.classList.remove('hidden');
+                btnSettings.className = "px-4 py-2 rounded-lg bg-indigo-600 text-white font-medium shadow transition-all";
+                btnDash.className = "px-4 py-2 rounded-lg text-gray-400 hover:bg-gray-700 hover:text-white font-medium transition-all";
             }
         }
 
-        function toggleSidebar() {
-            document.getElementById('sidebar').classList.toggle('collapsed');
+        // Alterar Layout (Grid vs Lista)
+        function changeLayout(layout) {
+            currentLayout = layout;
+            const btnGrid = document.getElementById('layout-grid');
+            const btnList = document.getElementById('layout-list');
+            
+            if(layout === 'grid') {
+                btnGrid.className = "p-2 text-xs font-semibold rounded bg-indigo-600 text-white";
+                btnList.className = "p-2 text-xs font-semibold rounded text-gray-400 hover:text-white";
+            } else {
+                btnList.className = "p-2 text-xs font-semibold rounded bg-indigo-600 text-white";
+                btnGrid.className = "p-2 text-xs font-semibold rounded text-gray-400 hover:text-white";
+            }
+            renderBookmarks();
         }
 
-        /* ==========================================================================
-           IDIOMA, CONTROLE E DIRETIVAS RTL
-           ========================================================================== */
-        function changeLanguage(lang) {
+        // Filtrar Marcadores
+        function filterBookmarks(filter) {
+            currentFilter = filter;
+            ['all', 'active', 'archived'].forEach(f => {
+                const btn = document.getElementById(`filter-${f}`);
+                if(f === filter) {
+                    btn.className = "px-4 py-1.5 rounded-full text-xs font-semibold bg-indigo-500/20 text-indigo-400 border border-indigo-500/30";
+                } else {
+                    btn.className = "px-4 py-1.5 rounded-full text-xs font-semibold bg-gray-800 text-gray-400 hover:bg-gray-700";
+                }
+            });
+            renderBookmarks();
+        }
+
+        // CRUD: Adicionar
+        function addBookmark(e) {
+            e.preventDefault();
+            const titleInput = document.getElementById('input-title');
+            const urlInput = document.getElementById('input-url');
+            
+            const newBookmark = {
+                id: Date.now(),
+                title: titleInput.value,
+                url: urlInput.value,
+                status: 'active'
+            };
+
+            bookmarks.push(newBookmark);
+            titleInput.value = '';
+            urlInput.value = '';
+            renderBookmarks();
+        }
+
+        // CRUD: Arquivar / Desarquivar
+        function toggleArchive(id) {
+            bookmarks = bookmarks.map(b => {
+                if(b.id === id) {
+                    b.status = b.status === 'active' ? 'archived' : 'active';
+                }
+                return b;
+            });
+            renderBookmarks();
+        }
+
+        // CRUD: Excluir
+        function deleteBookmark(id) {
+            bookmarks = bookmarks.filter(b => b.id !== id);
+            renderBookmarks();
+        }
+
+        // Mudar Idioma e atualizar interface (incluindo direção RTL)
+        function setLanguage(lang) {
             currentLang = lang;
-            applyLanguage(lang);
-            saveData();
-            renderSidebar();
-            renderMainCard();
+            const t = translations[lang];
+            
+            // Atualiza Direção da Página (LTR vs RTL)
+            const root = document.getElementById('app-root');
+            root.setAttribute('dir', t.dir);
+            root.setAttribute('lang', lang);
+
+            // Atualiza Textos
+            document.getElementById('txt-logo').innerText = t.logo;
+            document.getElementById('txt-nav-dash').innerText = t.navDash;
+            document.getElementById('txt-nav-settings').innerText = t.navSettings;
+            document.getElementById('title-add').innerText = t.titleAdd;
+            document.getElementById('input-title').placeholder = t.phTitle;
+            document.getElementById('input-url').placeholder = t.phUrl;
+            document.getElementById('btn-add').innerText = t.btnAdd;
+            document.getElementById('filter-all').innerText = t.filterAll;
+            document.getElementById('filter-active').innerText = t.filterActive;
+            document.getElementById('filter-archived').innerText = t.filterArchived;
+            document.getElementById('title-settings').innerText = t.titleSettings;
+            document.getElementById('label-lang').innerText = t.labelLang;
+
+            // Destaca botão ativo na sala de configurações
+            document.querySelectorAll('.lang-btn').forEach(btn => {
+                if(btn.getAttribute('data-lang') === lang) {
+                    btn.classList.add('border-indigo-500', 'bg-indigo-600/10');
+                } else {
+                    btn.classList.remove('border-indigo-500', 'bg-indigo-600/10');
+                }
+            });
+
+            renderBookmarks();
         }
 
-        function applyLanguage(lang) {
-            const trans = i18n[lang];
-            
-            // Tratamento de Orientação de Texto RTL / LTR
-            if (lang === 'ar' || lang === 'he') {
-                document.body.classList.add('rtl');
-                document.getElementById('lblArrowSide').innerText = "▶";
+        // Renderizar os Cards na Tela
+        function renderBookmarks() {
+            const container = document.getElementById('bookmarks-container');
+            container.innerHTML = '';
+
+            // Configura Grid ou Lista
+            if(currentLayout === 'grid') {
+                container.className = "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4";
             } else {
-                document.body.classList.remove('rtl');
-                document.getElementById('lblArrowSide').innerText = "◀";
+                container.className = "flex flex-col space-y-3 w-full";
             }
 
-            document.getElementById('lblNewBook').innerText = trans.newBook;
-            document.getElementById('lblSettingsBtn').innerText = trans.settingsBtn;
-            document.getElementById('lblPopUpBtn').innerText = trans.popUpBtn;
-            document.getElementById('lblExportBtn').innerText = trans.exportBtn;
-            document.getElementById('lblImportBtn').innerText = trans.importBtn;
-            
-            document.getElementById('lblMeta').innerText = trans.meta;
-            document.getElementById('lblAtual').innerText = trans.atual;
-            document.getElementById('lblSaveBtn').innerText = trans.saveBtn;
-            document.getElementById('lblHistoryTitle').innerText = trans.historyTitle;
-            document.getElementById('lblClearHistory').innerText = trans.clearHistory;
-            
-            document.getElementById('lblEmptyTitle').innerText = trans.emptyTitle;
-            document.getElementById('lblEmptyDesc').innerText = trans.emptyDesc;
-            
-            document.getElementById('lblModalTitle').innerText = trans.modalTitle;
-            document.getElementById('lblChangeProfile').innerText = trans.changeProfile;
-            document.getElementById('lblLinkDevice').innerText = trans.linkDevice;
-            document.getElementById('lblExpProfBtn').innerText = trans.expProf;
-            document.getElementById('lblImpProfBtn').innerText = trans.impProf;
-            document.getElementById('lblConfigLang').innerText = trans.configLang;
-            document.getElementById('lblConfigTheme').innerText = trans.configTheme;
-            document.getElementById('lblCloseModal').innerText = trans.closeModal;
+            // Filtra os dados
+            const filtered = bookmarks.filter(b => {
+                if (currentFilter === 'all') return true;
+                return b.status === currentFilter;
+            });
 
-            document.getElementById('currentProfileName').innerText = `${trans.labelProfile}: ${profileName}`;
+            const t = translations[currentLang];
+
+            // Cria os elementos HTML
+            filtered.forEach(b => {
+                const card = document.createElement('div');
+                
+                // Estilos base mudam conforme layout
+                const layoutClasses = currentLayout === 'grid' 
+                    ? "bg-gray-850 p-5 rounded-xl border border-gray-700 flex flex-col justify-between h-40 shadow transition-all hover:border-gray-600" 
+                    : "bg-gray-850 p-4 rounded-xl border border-gray-700 flex justify-between items-center shadow transition-all hover:border-gray-600 w-full";
+
+                card.className = layoutClasses;
+
+                const isArchived = b.status === 'archived';
+                const archiveIcon = isArchived ? 'fa-box-open' : 'fa-box';
+                const archiveText = isArchived ? t.btnUnarchive : t.btnArchive;
+
+                card.innerHTML = `
+                    <div class="${currentLayout === 'grid' ? 'mb-4' : ''} flex-1 overflow-hidden">
+                        <h3 class="font-bold text-white text-md truncate">${b.title}</h3>
+                        <a href="${b.url}" target="_blank" class="text-xs text-indigo-400 hover:underline truncate block mt-1">${b.url}</a>
+                        ${isArchived ? `<span class="inline-block mt-2 text-[10px] bg-yellow-500/10 text-yellow-500 px-2 py-0.5 rounded border border-yellow-500/20">${t.filterArchived}</span>` : ''}
+                    </div>
+                    <div class="flex items-center space-x-2 rtl:space-x-reverse justify-end ${currentLayout === 'grid' ? 'border-t border-gray-700/50 pt-3' : ''}">
+                        <button onclick="toggleArchive(${b.id})" title="${archiveText}" class="px-3 py-1.5 rounded bg-gray-750 hover:bg-gray-700 text-gray-300 text-xs flex items-center gap-1 transition-all">
+                            <i class="fa-solid ${archiveIcon}"></i> <span class="hidden sm:inline">${archiveText}</span>
+                        </button>
+                        <button onclick="deleteBookmark(${b.id})" title="${t.btnDelete}" class="px-3 py-1.5 rounded bg-red-900/20 hover:bg-red-900/40 text-red-400 text-xs flex items-center gap-1 transition-all">
+                            <i class="fa-solid fa-trash"></i> <span class="hidden sm:inline">${t.btnDelete}</span>
+                        </button>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
         }
 
-        /* ==========================================================================
-           TEMAS E ENGINES VISUAIS (CANVAS EFFECTS)
-           ========================================================================== */
-        function changeTheme(theme) {
-            currentTheme = theme;
-            applyTheme(theme);
-            saveData();
-        }
-
-        function applyTheme(theme) {
-            document.documentElement.setAttribute('data-theme', theme);
-            clearInterval(fxInterval);
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            particles = [];
-
-            if (theme === 'magma') {
-                initMagmaFX();
-            } else if (theme === 'neon') {
-                initNeonFX();
-            }
-        }
-
-        function setupCanvasSize() {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-        }
-
-        function initMagmaFX() {
-            fxInterval = setInterval(() => {
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-                if (particles.length < 40 && Math.random() < 0.15) {
-                    particles.push({
-                        x: Math.random() * canvas.width,
-                        y: canvas.height + 10,
-                        size: Math.random() * 3 + 1,
-                        speedY: -(Math.random() * 1.2 + 0.4),
-                        alpha: 1,
-                        decay: Math.random() * 0.005 + 0.002
-                    });
-                }
-                particles.forEach((p, idx) => {
-                    p.y += p.speedY;
-                    p.alpha -= p.decay;
-                    if (p.alpha <= 0) {
-                        particles.splice(idx, 1);
-                        return;
-                    }
-                    ctx.fillStyle = `rgba(249, 115, 22, ${p.alpha})`;
-                    ctx.beginPath();
-                    ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-                    ctx.fill();
-                });
-            }, 30);
-        }
-
-        function initNeonFX() {
-            fxInterval = setInterval(() => {
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-                if (particles.length < 50 && Math.random() < 0.3) {
-                    particles.push({
-                        x: Math.random() * canvas.width,
-                        y: -10,
-                        length: Math.random() * 15 + 10,
-                        speedY: Math.random() * 4 + 2,
-                        alpha: Math.random() * 0.3 + 0.1
-                    });
-                }
-                particles.forEach((p, idx) => {
-                    p.y += p.speedY;
-                    if (p.y > canvas.height) {
-                        particles.splice(idx, 1);
-                        return;
-                    }
-                    ctx.strokeStyle = `rgba(57, 255, 20, ${p.alpha})`;
-                    ctx.lineWidth = 1;
-                    ctx.beginPath();
-                    ctx.moveTo(p.x, p.y);
-                    ctx.lineTo(p.x, p.y + p.length);
-                    ctx.stroke();
-                });
-            }, 30);
-        }
-
-        /* ==========================================================================
-           MODALS, BACKUPS & POP-UP ENGINE
-           ========================================================================== */
-        function openSettings() { document.getElementById('settingsModal').classList.add('visible'); }
-        function closeSettings() { document.getElementById('settingsModal').classList.remove('visible'); }
-
-        function renameProfile(name) {
-            profileName = name.trim() || "Autor Padrão";
-            document.getElementById('currentProfileName').innerText = `${i18n[currentLang].labelProfile}: ${profileName}`;
-            saveData();
-        }
-
-        function openInPopUp() {
-            const width = 400, height = 650;
-            const left = (screen.width / 2) - (width / 2);
-            const top = (screen.height / 2) - (height / 2);
-            window.open(window.location.href, 'WritingTrackerPopUp', `width=${width},height=${height},top=${top},left=${left},resizable=yes,scrollbars=yes,status=no,location=no`);
-        }
-
-        function exportBackup() {
-            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({
-                version: APP_VERSION,
-                type: 'full_backup',
-                profileName: profileName,
-                booksData: booksData
-            }));
-            const dlAnchor = document.createElement('a');
-            dlAnchor.setAttribute("href", dataStr);
-            dlAnchor.setAttribute("download", `rastreador_backup_${Date.now()}.json`);
-            dlAnchor.click();
-        }
-
-        function importBackup(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                try {
-                    const parsed = JSON.parse(e.target.result);
-                    if (parsed && parsed.booksData) {
-                        if (confirm(i18n[currentLang].confirmImport)) {
-                            booksData = parsed.booksData;
-                            if (parsed.profileName) profileName = parsed.profileName;
-                            activeBookId = null;
-                            saveData();
-                            loadData();
-                            renderSidebar();
-                            renderMainCard();
-                        }
-                    } else {
-                        alert(i18n[currentLang].invalidJson);
-                    }
-                } catch (err) {
-                    alert(i18n[currentLang].errFile);
-                }
-            };
-            reader.readAsText(file);
-        }
-
-        function exportProfileOnly() {
-            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({
-                version: APP_VERSION,
-                type: 'profile_only',
-                profileName: profileName
-            }));
-            const dlAnchor = document.createElement('a');
-            dlAnchor.setAttribute("href", dataStr);
-            dlAnchor.setAttribute("download", `perfil_${profileName.replace(/\s+/g, '_')}.json`);
-            dlAnchor.click();
-        }
-
-        function importProfileOnly(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                try {
-                    const parsed = JSON.parse(e.target.result);
-                    if (parsed && parsed.type === 'profile_only' && parsed.profileName) {
-                        const msg = i18n[currentLang].confirmImportProf.replace("{name}", parsed.profileName);
-                        if (confirm(msg)) {
-                            profileName = parsed.profileName;
-                            saveData();
-                            applyLanguage(currentLang);
-                        }
-                    } else {
-                        alert(i18n[currentLang].invalidProf);
-                    }
-                } catch (err) {
-                    alert(i18n[currentLang].errFile);
-                }
-            };
-            reader.readAsText(file);
-        }
+        // Inicialização do App
+        setLanguage('pt');
     </script>
 </body>
 </html>
