@@ -1,0 +1,581 @@
+<script>
+        const APP_VERSION = "4.6.0";
+        let booksData = {}, activeBookId = null, currentTheme = 'megamix', currentLang = 'pt', profileName = "Autor Padrão";
+        let vis = { archiveList: false, trashList: false };
+
+        let fxInterval = null;
+        const canvas = document.getElementById('fxCanvas');
+        const ctx = canvas.getContext('2d');
+        let particles = [];
+
+        // Object i18n finalizado e estendido para todas as linguagens listadas na UI
+        const i18n = {
+            pt: {
+                newBook: "➕ Novo livro", archiveSec: "Arquivados", trashSec: "Lixeira",
+                settingsBtn: "Perfil / Configurações", exportBtn: "📥 Exportar Tudo", importBtn: "📤 Importar Tudo",
+                meta: "Meta Total", atual: "Página Atual", saveBtn: "Salvar Marcador",
+                historyTitle: "Últimas atualizações:", clearHistory: "Limpar", emptyTitle: "Nenhum livro ativo 📖",
+                emptyDesc: "Crie ou selecione um livro na barra lateral.", modalTitle: "👤 Perfil do Escritor",
+                configLang: "Idioma / Language", configTheme: "Tema da Interface", closeModal: "Fechar",
+                alertMaxTrash: "Página atual maior que o total!", confirmHardDelete: "Excluir permanentemente \"{title}\"? Não dá para reverter.",
+                confirmImport: "Substituir livros antigos por este backup?", confirmClearHistory: "Limpar histórico?",
+                fallbackTitle: "Novo Livro", untitled: "Sem Título", pages: "págs", invalidJson: "JSON inválido.",
+                labelPage: "Pág", labelProfile: "Perfil", changeProfile: "Mudar Nome do Perfil",
+                linkDevice: "Vincular a outros dispositivos", expProf: "📥 Exportar este Perfil", impProf: "📤 Importar Perfil Externo",
+                confirmImportProf: "Deseja importar e substituir seu espaço pelo perfil de \"{name}\"?", invalidProf: "Formato de perfil inválido.", errFile: "Erro ao carregar o arquivo.",
+                popUpBtn: "🔲 Abrir em Pop-up"
+            },
+            en: {
+                newBook: "➕ New Book", archiveSec: "Archived", trashSec: "Trash",
+                settingsBtn: "Profile / Settings", exportBtn: "📥 Export All", importBtn: "📤 Import All",
+                meta: "Total Goal", atual: "Current Page", saveBtn: "Save Progress",
+                historyTitle: "Latest updates:", clearHistory: "Clear", emptyTitle: "No active book 📖",
+                emptyDesc: "Create or select a book in the sidebar.", modalTitle: "👤 Writer Profile",
+                configLang: "Language / Idioma", configTheme: "Interface Theme", closeModal: "Close",
+                alertMaxTrash: "Current page exceeds total goal!", confirmHardDelete: "Permanently delete \"{title}\"? This cannot be undone.",
+                confirmImport: "Overwrite current books with this backup?", confirmClearHistory: "Clear log history?",
+                fallbackTitle: "New Book", untitled: "Untitled", pages: "pgs", invalidJson: "Invalid JSON.",
+                labelPage: "Pg", labelProfile: "Profile", changeProfile: "Change Profile Name",
+                linkDevice: "Link to other devices", expProf: "📥 Export this Profile", impProf: "📤 Import External Profile",
+                confirmImportProf: "Do you want to import and replace your workspace with \"{name}\"'s profile?", invalidProf: "Invalid profile format.", errFile: "Error loading file.",
+                popUpBtn: "🔲 Open in Pop-up"
+            },
+            es: {
+                newBook: "➕ Nuevo Libro", archiveSec: "Archivados", trashSec: "Papelera",
+                settingsBtn: "Perfil / Configuración", exportBtn: "📥 Exportar Todo", importBtn: "📤 Importar Todo",
+                meta: "Meta Total", atual: "Página Actual", saveBtn: "Guardar Progreso",
+                historyTitle: "Últimas actualizaciones:", clearHistory: "Limpiar", emptyTitle: "Ningún libro activo 📖",
+                emptyDesc: "Crea o selecciona un libro en la barra lateral.", modalTitle: "👤 Perfil del Escritor",
+                configLang: "Idioma / Language", configTheme: "Tema de la Interfaz", closeModal: "Cerrar",
+                alertMaxTrash: "¡La página actual supera la meta total!", confirmHardDelete: "¿Eliminar permanentemente \"{title}\"? No se puede revertir.",
+                confirmImport: "¿Sobrescribir los libros actuales con esta copia de seguridad?", confirmClearHistory: "¿Limpiar el historial?",
+                fallbackTitle: "Nuevo Libro", untitled: "Sin Título", pages: "pags", invalidJson: "JSON inválido.",
+                labelPage: "Pág", labelProfile: "Perfil", changeProfile: "Cambiar Nombre del Perfil",
+                linkDevice: "Vincular a otros dispositivos", expProf: "📥 Exportar este Perfil", impProf: "📤 Importar Perfil Externo",
+                confirmImportProf: "¿Desea importar y reemplazar su espacio con el perfil de \"{name}\"?", invalidProf: "Formato de perfil no válido.", errFile: "Error al cargar el archivo.",
+                popUpBtn: "🔲 Abrir en Pop-up"
+            },
+            zh: {
+                newBook: "➕ 新书", archiveSec: "已归档", trashSec: "回收站",
+                settingsBtn: "个人资料 / 设置", exportBtn: "📥 导出全部", importBtn: "📤 导入全部",
+                meta: "总目标页", atual: "当前页", saveBtn: "保存进度",
+                historyTitle: "最新更新:", clearHistory: "清空", emptyTitle: "无活动书目 📖",
+                emptyDesc: "在侧边栏创建或选择一本书。", modalTitle: "👤 作家个人资料",
+                configLang: "语言 / Language", configTheme: "界面主题", closeModal: "关闭",
+                alertMaxTrash: "当前页数超过了总目标！", confirmHardDelete: "永久删除 \"{title}\"？此操作无法撤销。",
+                confirmImport: "用此备份覆盖当前书籍吗？", confirmClearHistory: "清空历史日志？",
+                fallbackTitle: "新书", untitled: "无标题", pages: "页", invalidJson: "无效的 JSON。",
+                labelPage: "页", labelProfile: "属性", changeProfile: "修改分析文件名",
+                linkDevice: "链接到其他设备", expProf: "📥 仅导出此配置", impProf: "📤 导入外部配置",
+                confirmImportProf: "是否要导入并用 \"{name}\" 的配置替换当前工作区？", invalidProf: "无效的配置文件格式。", errFile: "加载文件时出错。",
+                popUpBtn: "🔲 弹窗中打开"
+            },
+            ar: {
+                newBook: "➕ كتاب جديد", archiveSec: "المؤرشفة", trashSec: "سلة المهملات",
+                settingsBtn: "الملف الشخصي / الإعدادات", exportBtn: "📥 تصدير الكل", importBtn: "📤 استيراد الكل",
+                meta: "الهدف الإجمالي", atual: "الصفحة الحالية", saveBtn: "حفظ التقدم",
+                historyTitle: "آخر التحديثات:", clearHistory: "مسح", emptyTitle: "لا يوجد كتاب نشط 📖",
+                emptyDesc: "قم بإنشاء أو تحديد كتاب من شريط الأدوات الجانبي.", modalTitle: "👤 ملف الكاتب الشخصي",
+                configLang: "اللغة / Language", configTheme: "مظهر الواجهة", closeModal: "إغلاق",
+                alertMaxTrash: "الصفحة الحالية تتجاوز الهدف الإجمالي!", confirmHardDelete: "هل تريد حذف \"{title}\" نهائيًا؟ لا يمكن التراجع عن هذا الإجراء.",
+                confirmImport: "هل تريد استبدال الكتب الحالية بنسخة الاحتياط هذه؟", confirmClearHistory: "هل تريد مسح سجل التحديثات؟",
+                fallbackTitle: "كتاب جديد", untitled: "بلا عنوان", pages: "صفحات", invalidJson: "ملف JSON غير صالح.",
+                labelPage: "صفحة", labelProfile: "الملف الشخصي", changeProfile: "تغيير اسم الملف الشخصي",
+                linkDevice: "ربط بأجهزة أخرى", expProf: "📥 تصدير هذا الملف", impProf: "📤 استيراد ملف خارجي",
+                confirmImportProf: "هل تريد استيراد واستبدال مساحة العمل بملف \"{name}\"؟", invalidProf: "صيغة الملف الشخصي غير صالحة.", errFile: "خطأ أثناء تحميل الملف.",
+                popUpBtn: "🔲 فتح في نافذة منبثقة"
+            },
+            he: {
+                newBook: "➕ ספר חדש", archiveSec: "בארכיון", trashSec: "אשפה",
+                settingsBtn: "פרופיל / הגדרות", exportBtn: "📥 ייצא הכל", importBtn: "📤 ייבא הכל",
+                meta: "יעד כולל", atual: "עמוד נוכחי", saveBtn: "שמור התקדמות",
+                historyTitle: "עדכונים אחרונים:", clearHistory: "נקה", emptyTitle: "אין ספר פעיל 📖",
+                emptyDesc: "צור או בחר ספר בסרגל הצידי.", modalTitle: "👤 פרופיל סופר",
+                configLang: "שפה / Language", configTheme: "ערכת נושא", closeModal: "סגור",
+                alertMaxTrash: "העמוד הנוכחי עובר את היעד הכולל!", confirmHardDelete: "למחוק לצמיתות את \"{title}\"? לא ניתן לבטל פעולה זו.",
+                confirmImport: "לדרוס את הספרים הקיימים עם גיבוי זה?", confirmClearHistory: "לנקות את ההיסטוריה?",
+                fallbackTitle: "ספר חדש", untitled: "ללא כותרת", pages: "עמ'", invalidJson: "קובץ JSON לא תקין.",
+                labelPage: 'עמ\'', labelProfile: "פרופיל", changeProfile: "שנה שם פרופיל",
+                linkDevice: "קשר למכשירים אחרים", expProf: "📥 ייצא פרופil זה", impProf: "📤 ייבא פרופיל חיצוני",
+                confirmImportProf: "האם ברצונך לייבא ולהחליף את מרחב העבודה בפרופיל של \"{name}\"?", invalidProf: "פורמט פרופיל לא תקין.", errFile: "שגיאה בטעינת הקובץ.",
+                popUpBtn: "🔲 פתח בחלון קופץ"
+            }
+        };
+
+        /* ==========================================================================
+           INICIALIZAÇÃO E STORAGE
+           ========================================================================== */
+        window.addEventListener('DOMContentLoaded', () => {
+            loadData();
+            applyTheme(currentTheme);
+            applyLanguage(currentLang);
+            renderSidebar();
+            renderMainCard();
+            setupCanvasSize();
+            window.addEventListener('resize', setupCanvasSize);
+        });
+
+        function saveData() {
+            localStorage.setItem('writingTracker_books', JSON.stringify(booksData));
+            localStorage.setItem('writingTracker_theme', currentTheme);
+            localStorage.setItem('writingTracker_lang', currentLang);
+            localStorage.setItem('writingTracker_profile', profileName);
+        }
+
+        function loadData() {
+            booksData = JSON.parse(localStorage.getItem('writingTracker_books')) || {};
+            currentTheme = localStorage.getItem('writingTracker_theme') || 'megamix';
+            currentLang = localStorage.getItem('writingTracker_lang') || 'pt';
+            profileName = localStorage.getItem('writingTracker_profile') || 'Autor Padrão';
+            
+            document.getElementById('settingTheme').value = currentTheme;
+            document.getElementById('settingLang').value = currentLang;
+            document.getElementById('profileNameInput').value = profileName;
+            document.getElementById('currentProfileName').innerText = `${i18n[currentLang].labelProfile}: ${profileName}`;
+        }
+
+        /* ==========================================================================
+           GERENCIAMENTO DE LIVROS E REATIVIDADE
+           ========================================================================== */
+        function createNewBook() {
+            const id = 'book_' + Date.now();
+            booksData[id] = {
+                id: id,
+                title: i18n[currentLang].fallbackTitle,
+                totalPages: 100,
+                currentPage: 0,
+                status: 'active', // active, archived, trash
+                history: []
+            };
+            activeBookId = id;
+            saveData();
+            renderSidebar();
+            renderMainCard();
+        }
+
+        function selectBook(id) {
+            if (booksData[id] && booksData[id].status !== 'trash') {
+                activeBookId = id;
+                renderSidebar();
+                renderMainCard();
+            }
+        }
+
+        function updateBookTitle(value) {
+            if (!activeBookId || !booksData[activeBookId]) return;
+            booksData[activeBookId].title = value.trim() || i18n[currentLang].untitled;
+            saveData();
+            
+            // Atualiza o item textual na barra lateral sem re-renderizar todo o DOM (evita quebra de foco)
+            const item = document.querySelector(`.book-item[data-id="${activeBookId}"] .book-title-tab`);
+            if (item) item.innerText = booksData[activeBookId].title;
+        }
+
+        function saveProgress() {
+            if (!activeBookId || !booksData[activeBookId]) return;
+            const book = booksData[activeBookId];
+            const totalInput = parseInt(document.getElementById('totalPages').value) || 0;
+            const currentInput = parseInt(document.getElementById('currentPage').value) || 0;
+
+            if (currentInput > totalInput) {
+                alert(i18n[currentLang].alertMaxTrash);
+                return;
+            }
+
+            book.totalPages = totalInput;
+            book.currentPage = currentInput;
+
+            const timeStr = new Date().toLocaleTimeString(currentLang, { hour: '2-digit', minute: '2-digit' });
+            const logEntry = `${timeStr} -> ${i18n[currentLang].labelPage} ${currentInput} / ${totalInput}`;
+            book.history.unshift(logEntry);
+
+            saveData();
+            renderMainCard();
+        }
+
+        function clearBookHistory() {
+            if (!activeBookId || !booksData[activeBookId]) return;
+            if (confirm(i18n[currentLang].confirmClearHistory)) {
+                booksData[activeBookId].history = [];
+                saveData();
+                renderMainCard();
+            }
+        }
+
+        /* ==========================================================================
+           SISTEMA DE ARQUIVO E LIXEIRA (MÁXIMO 5)
+           ========================================================================== */
+        function moveBookStatus(id, newStatus) {
+            if (!booksData[id]) return;
+
+            if (newStatus === 'trash') {
+                const trashCount = Object.values(booksData).filter(b => b.status === 'trash').length;
+                if (trashCount >= 5) {
+                    // Remove o mais antigo da lixeira para abrir espaço
+                    const oldestTrash = Object.values(booksData)
+                        .filter(b => b.status === 'trash')
+                        .sort((a, b) => parseFloat(a.id.split('_')[1]) - parseFloat(b.id.split('_')[1]))[0];
+                    if (oldestTrash) delete booksData[oldestTrash.id];
+                }
+            }
+
+            booksData[id].status = newStatus;
+            if (activeBookId === id && newStatus !== 'active') activeBookId = null;
+
+            saveData();
+            renderSidebar();
+            renderMainCard();
+        }
+
+        function hardDeleteBook(id) {
+            if (!booksData[id]) return;
+            const msg = i18n[currentLang].confirmHardDelete.replace("{title}", booksData[id].title);
+            if (confirm(msg)) {
+                delete booksData[id];
+                saveData();
+                renderSidebar();
+                renderMainCard();
+            }
+        }
+
+        /* ==========================================================================
+           RENDERIZADORES DE LAYOUT
+           ========================================================================== */
+        function renderSidebar() {
+            const listContainer = document.getElementById('bookList');
+            const archiveContainer = document.getElementById('archiveList');
+            const trashContainer = document.getElementById('trashList');
+
+            listContainer.innerHTML = '';
+            archiveContainer.innerHTML = '';
+            trashContainer.innerHTML = '';
+
+            let actCount = 0, arcCount = 0, trshCount = 0;
+
+            Object.values(booksData).forEach(book => {
+                const item = document.createElement('div');
+                item.className = `book-item ${book.id === activeBookId ? 'active' : ''}`;
+                item.setAttribute('data-id', book.id);
+
+                if (book.status === 'active') {
+                    actCount++;
+                    item.onclick = () => selectBook(book.id);
+                    item.innerHTML = `
+                        <span class="book-title-tab">${book.title}</span>
+                        <div class="actions-tab">
+                            <button class="btn-action-tab" onclick="event.stopPropagation(); moveBookStatus('${book.id}', 'archived')" title="Arquivar">📦</button>
+                            <button class="btn-action-tab del" onclick="event.stopPropagation(); moveBookStatus('${book.id}', 'trash')" title="Lixeira">🗑️</button>
+                        </div>
+                    `;
+                    listContainer.appendChild(item);
+                } else if (book.status === 'archived') {
+                    arcCount++;
+                    item.innerHTML = `
+                        <span class="book-title-tab" style="width:65%">${book.title}</span>
+                        <div class="actions-tab" style="display:flex;">
+                            <button class="btn-action-tab" onclick="moveBookStatus('${book.id}', 'active')" title="Desarquivar">📤</button>
+                            <button class="btn-action-tab del" onclick="moveBookStatus('${book.id}', 'trash')" title="Lixeira">🗑️</button>
+                        </div>
+                    `;
+                    archiveContainer.appendChild(item);
+                } else if (book.status === 'trash') {
+                    trshCount++;
+                    item.innerHTML = `
+                        <span class="book-title-tab" style="width:65%">${book.title}</span>
+                        <div class="actions-tab" style="display:flex;">
+                            <button class="btn-action-tab" onclick="moveBookStatus('${book.id}', 'active')" title="Restaurar">🔄</button>
+                            <button class="btn-action-tab del" onclick="hardDeleteBook('${book.id}')" title="Excluir Definitivo">❌</button>
+                        </div>
+                    `;
+                    trashContainer.appendChild(item);
+                }
+            });
+
+            document.getElementById('lblArchiveSec').innerText = `${i18n[currentLang].archiveSec} (${arcCount})`;
+            document.getElementById('lblTrashSec').innerText = `${i18n[currentLang].trashSec} (${trshCount}/5)`;
+        }
+
+        function renderMainCard() {
+            const card = document.getElementById('editorCard');
+            const emptyState = document.getElementById('emptyState');
+
+            if (!activeBookId || !booksData[activeBookId]) {
+                card.style.display = 'none';
+                emptyState.style.display = 'block';
+                return;
+            }
+
+            card.style.display = 'block';
+            emptyState.style.display = 'none';
+
+            const book = booksData[activeBookId];
+            document.getElementById('bookTitle').value = book.title;
+            document.getElementById('totalPages').value = book.totalPages;
+            document.getElementById('currentPage').value = book.currentPage;
+
+            // Progresso Matemático
+            const pct = book.totalPages > 0 ? Math.min(100, Math.round((book.currentPage / book.totalPages) * 100)) : 0;
+            document.getElementById('progressBar').style.width = `${pct}%`;
+            document.getElementById('stats').innerText = `${book.currentPage}/${book.totalPages} ${i18n[currentLang].pages} (${pct}%)`;
+
+            // Histórico Log
+            const logContainer = document.getElementById('historyLog');
+            logContainer.innerHTML = '';
+            book.history.slice(0, 10).forEach(log => {
+                const el = document.createElement('div');
+                el.className = 'history-item';
+                el.innerText = log;
+                logContainer.appendChild(el);
+            });
+        }
+
+        function toggleSection(listId, arrowId) {
+            vis[listId] = !vis[listId];
+            const listEl = document.getElementById(listId);
+            const arrowEl = document.getElementById(arrowId);
+            
+            if (vis[listId]) {
+                listEl.classList.add('visible');
+                arrowEl.innerText = '▼';
+            } else {
+                listEl.classList.remove('visible');
+                arrowEl.innerText = '▶';
+            }
+        }
+
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('collapsed');
+        }
+
+        /* ==========================================================================
+           IDIOMA, CONTROLE E DIRETIVAS RTL
+           ========================================================================== */
+        function changeLanguage(lang) {
+            currentLang = lang;
+            applyLanguage(lang);
+            saveData();
+            renderSidebar();
+            renderMainCard();
+        }
+
+        function applyLanguage(lang) {
+            const trans = i18n[lang];
+            
+            // Tratamento de Orientação de Texto RTL / LTR
+            if (lang === 'ar' || lang === 'he') {
+                document.body.classList.add('rtl');
+                document.getElementById('lblArrowSide').innerText = "▶";
+            } else {
+                document.body.classList.remove('rtl');
+                document.getElementById('lblArrowSide').innerText = "◀";
+            }
+
+            document.getElementById('lblNewBook').innerText = trans.newBook;
+            document.getElementById('lblSettingsBtn').innerText = trans.settingsBtn;
+            document.getElementById('lblPopUpBtn').innerText = trans.popUpBtn;
+            document.getElementById('lblExportBtn').innerText = trans.exportBtn;
+            document.getElementById('lblImportBtn').innerText = trans.importBtn;
+            
+            document.getElementById('lblMeta').innerText = trans.meta;
+            document.getElementById('lblAtual').innerText = trans.atual;
+            document.getElementById('lblSaveBtn').innerText = trans.saveBtn;
+            document.getElementById('lblHistoryTitle').innerText = trans.historyTitle;
+            document.getElementById('lblClearHistory').innerText = trans.clearHistory;
+            
+            document.getElementById('lblEmptyTitle').innerText = trans.emptyTitle;
+            document.getElementById('lblEmptyDesc').innerText = trans.emptyDesc;
+            
+            document.getElementById('lblModalTitle').innerText = trans.modalTitle;
+            document.getElementById('lblChangeProfile').innerText = trans.changeProfile;
+            document.getElementById('lblLinkDevice').innerText = trans.linkDevice;
+            document.getElementById('lblExpProfBtn').innerText = trans.expProf;
+            document.getElementById('lblImpProfBtn').innerText = trans.impProf;
+            document.getElementById('lblConfigLang').innerText = trans.configLang;
+            document.getElementById('lblConfigTheme').innerText = trans.configTheme;
+            document.getElementById('lblCloseModal').innerText = trans.closeModal;
+
+            document.getElementById('currentProfileName').innerText = `${trans.labelProfile}: ${profileName}`;
+        }
+
+        /* ==========================================================================
+           TEMAS E ENGINES VISUAIS (CANVAS EFFECTS)
+           ========================================================================== */
+        function changeTheme(theme) {
+            currentTheme = theme;
+            applyTheme(theme);
+            saveData();
+        }
+
+        function applyTheme(theme) {
+            document.documentElement.setAttribute('data-theme', theme);
+            clearInterval(fxInterval);
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            particles = [];
+
+            if (theme === 'magma') {
+                initMagmaFX();
+            } else if (theme === 'neon') {
+                initNeonFX();
+            }
+        }
+
+        function setupCanvasSize() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+
+        function initMagmaFX() {
+            fxInterval = setInterval(() => {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                if (particles.length < 40 && Math.random() < 0.15) {
+                    particles.push({
+                        x: Math.random() * canvas.width,
+                        y: canvas.height + 10,
+                        size: Math.random() * 3 + 1,
+                        speedY: -(Math.random() * 1.2 + 0.4),
+                        alpha: 1,
+                        decay: Math.random() * 0.005 + 0.002
+                    });
+                }
+                particles.forEach((p, idx) => {
+                    p.y += p.speedY;
+                    p.alpha -= p.decay;
+                    if (p.alpha <= 0) {
+                        particles.splice(idx, 1);
+                        return;
+                    }
+                    ctx.fillStyle = `rgba(249, 115, 22, ${p.alpha})`;
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                    ctx.fill();
+                });
+            }, 30);
+        }
+
+        function initNeonFX() {
+            fxInterval = setInterval(() => {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                if (particles.length < 50 && Math.random() < 0.3) {
+                    particles.push({
+                        x: Math.random() * canvas.width,
+                        y: -10,
+                        length: Math.random() * 15 + 10,
+                        speedY: Math.random() * 4 + 2,
+                        alpha: Math.random() * 0.3 + 0.1
+                    });
+                }
+                particles.forEach((p, idx) => {
+                    p.y += p.speedY;
+                    if (p.y > canvas.height) {
+                        particles.splice(idx, 1);
+                        return;
+                    }
+                    ctx.strokeStyle = `rgba(57, 255, 20, ${p.alpha})`;
+                    ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    ctx.moveTo(p.x, p.y);
+                    ctx.lineTo(p.x, p.y + p.length);
+                    ctx.stroke();
+                });
+            }, 30);
+        }
+
+        /* ==========================================================================
+           MODALS, BACKUPS & POP-UP ENGINE
+           ========================================================================== */
+        function openSettings() { document.getElementById('settingsModal').classList.add('visible'); }
+        function closeSettings() { document.getElementById('settingsModal').classList.remove('visible'); }
+
+        function renameProfile(name) {
+            profileName = name.trim() || "Autor Padrão";
+            document.getElementById('currentProfileName').innerText = `${i18n[currentLang].labelProfile}: ${profileName}`;
+            saveData();
+        }
+
+        function openInPopUp() {
+            const width = 400, height = 650;
+            const left = (screen.width / 2) - (width / 2);
+            const top = (screen.height / 2) - (height / 2);
+            window.open(window.location.href, 'WritingTrackerPopUp', `width=${width},height=${height},top=${top},left=${left},resizable=yes,scrollbars=yes,status=no,location=no`);
+        }
+
+        function exportBackup() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({
+                version: APP_VERSION,
+                type: 'full_backup',
+                profileName: profileName,
+                booksData: booksData
+            }));
+            const dlAnchor = document.createElement('a');
+            dlAnchor.setAttribute("href", dataStr);
+            dlAnchor.setAttribute("download", `rastreador_backup_${Date.now()}.json`);
+            dlAnchor.click();
+        }
+
+        function importBackup(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const parsed = JSON.parse(e.target.result);
+                    if (parsed && parsed.booksData) {
+                        if (confirm(i18n[currentLang].confirmImport)) {
+                            booksData = parsed.booksData;
+                            if (parsed.profileName) profileName = parsed.profileName;
+                            activeBookId = null;
+                            saveData();
+                            loadData();
+                            renderSidebar();
+                            renderMainCard();
+                        }
+                    } else {
+                        alert(i18n[currentLang].invalidJson);
+                    }
+                } catch (err) {
+                    alert(i18n[currentLang].errFile);
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function exportProfileOnly() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({
+                version: APP_VERSION,
+                type: 'profile_only',
+                profileName: profileName
+            }));
+            const dlAnchor = document.createElement('a');
+            dlAnchor.setAttribute("href", dataStr);
+            dlAnchor.setAttribute("download", `perfil_${profileName.replace(/\s+/g, '_')}.json`);
+            dlAnchor.click();
+        }
+
+        function importProfileOnly(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const parsed = JSON.parse(e.target.result);
+                    if (parsed && parsed.type === 'profile_only' && parsed.profileName) {
+                        const msg = i18n[currentLang].confirmImportProf.replace("{name}", parsed.profileName);
+                        if (confirm(msg)) {
+                            profileName = parsed.profileName;
+                            saveData();
+                            applyLanguage(currentLang);
+                        }
+                    } else {
+                        alert(i18n[currentLang].invalidProf);
+                    }
+                } catch (err) {
+                    alert(i18n[currentLang].errFile);
+                }
+            };
+            reader.readAsText(file);
+        }
+    </script>
+</body>
+</html>
