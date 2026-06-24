@@ -1,484 +1,1289 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Rastreador de Escrita 📝</title>
-    <style>
-        :root[data-theme="cyber"]{--bg-main:#0d0e15;--bg-sidebar:#07080c;--surface:#161925;--surface-hover:#222638;--text:#e2e8f0;--text-muted:#718096;--primary:#00f0ff;--secondary:#bd00ff;--gradient-neon:linear-gradient(135deg, #00f0ff, #bd00ff);--danger:#ff0055;--border:#2d3748;--shadow:rgba(0,240,255,0.15)}
-        :root[data-theme="br"]{--bg-main:#051205;--bg-sidebar:#020802;--surface:#0b240b;--surface-hover:#123a12;--text:#e6f4e6;--text-muted:#527a52;--primary:#39ff14;--secondary:#ffea00;--gradient-neon:linear-gradient(135deg, #39ff14, #ffea00);--danger:#ff3333;--border:#1a4d1a;--shadow:rgba(57,255,20,0.15)}
-        :root[data-theme="magma"]{--bg-main:#140806;--bg-sidebar:#090302;--surface:#260f0a;--surface-hover:#3d1810;--text:#f7ebd9;--text-muted:#8a6860;--primary:#ff6600;--secondary:#ff0033;--gradient-neon:linear-gradient(135deg, #ff6600, #ff0033);--danger:#ff3333;--border:#4d1f14;--shadow:rgba(255,102,0,0.15)}
-        body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg-main);color:var(--text);margin:0;display:flex;height:100vh;overflow:hidden;transition:background 0.3s}
-        
-        /* Layout e Topo da Sidebar */
-        .sidebar{width:240px;background:var(--bg-sidebar);display:flex;flex-direction:column;padding:10px;box-sizing:border-box;border-right:1px solid var(--border);flex-shrink:0;transition:all 0.3s ease;position:relative;z-index:10}
-        .sidebar.collapsed{width:0;padding:10px 0;overflow:hidden;border-right-color:transparent}
-        
-        .sidebar-top-row{display:flex;gap:6px;align-items:center;margin-bottom:10px;width:100%}
-        .btn-new-book{flex:1;background:transparent;color:#fff;border:1px solid var(--primary);box-shadow:0 0 5px var(--shadow);border-radius:6px;padding:10px;font-size:.9rem;text-align:left;cursor:pointer;display:flex;align-items:center;gap:10px;transition:all 0.2s;white-space:nowrap}
-        .btn-new-book:hover{background:rgba(255,255,255,0.05);box-shadow:0 0 10px var(--primary)}
-        
-        .btn-toggle-sidebar{background:var(--surface);border:1px solid var(--border);color:var(--primary);border-radius:6px;width:38px;height:38px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1.1rem;transition:all 0.2s;flex-shrink:0}
-        .btn-toggle-sidebar:hover{color:var(--secondary);border-color:var(--primary);box-shadow:0 0 8px var(--primary)}
-        
-        /* Gatilho Flutuante */
-        .btn-floating-trigger{position:absolute;top:15px;left:15px;background:var(--surface);border:1px solid var(--border);color:var(--primary);border-radius:6px;width:38px;height:38px;cursor:pointer;display:none;align-items:center;justify-content:center;font-size:1.1rem;z-index:5;transition:all 0.2s;box-shadow:0 0 10px rgba(0,0,0,0.4)}
-        .sidebar.collapsed ~ .btn-floating-trigger{display:flex}
-        .btn-floating-trigger:hover{color:var(--secondary);border-color:var(--primary);box-shadow:0 0 8px var(--primary)}
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rastreador de Escrita 📝</title>
+    <style>
+        /* ==========================================================================
+           PALETAS ULTRA MODERNAS & ÍCONES DINÂMICOS POR TEMA
+           ========================================================================== */
+        
+        /* 1. NORDIC GLASS (Padrão: Minimalista, Frio, Linhas Retas) */
+        :root[data-theme="megamix"] {
+            --bg-main: #080b11;
+            --bg-sidebar: rgba(13, 17, 26, 0.7);
+            --surface: rgba(22, 28, 41, 0.45);
+            --surface-hover: rgba(30, 39, 57, 0.6);
+            --text: #f3f4f6;
+            --text-muted: #9ca3af;
+            --primary: #3b82f6;
+            --secondary: #60a5fa;
+            --gradient-accent: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            --danger: #ef4444;
+            --border: rgba(255, 255, 255, 0.06);
+            --shadow: rgba(0, 0, 0, 0.4);
+            --glass-blur: blur(16px);
+            
+            /* Ícones do Tema */
+            --ico-archive: "📁";
+            --ico-trash: "🗑️";
+            --ico-settings: "⚙️";
+        }
 
-        /* Listagens */
-        .book-list{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:4px}
-        .book-item{display:flex;justify-content:space-between;align-items:center;padding:8px 10px;border-radius:6px;cursor:pointer;font-size:.85rem;border:1px solid transparent;white-space:nowrap}
-        .book-item:hover {background:var(--surface-hover)}
-        .book-item.active{background:var(--surface);border-color:var(--secondary);box-shadow:0 0 8px var(--shadow)}
-        .book-title-tab{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;width:70%}
-        .actions-tab{display:none;gap:5px}
-        .book-item:hover .actions-tab{display:flex}
-        .btn-action-tab{background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:0.9rem;padding:0}
-        .btn-action-tab:hover{color:var(--primary)}
-        .btn-action-tab.del:hover{color:var(--danger)}
-        
-        .sub-section{margin-top:8px;border-top:1px dashed var(--border);padding-top:5px;white-space:nowrap}
-        .sub-header{display:flex;justify-content:space-between;align-items:center;padding:4px;font-size:0.8rem;color:var(--text-muted);cursor:pointer}
-        .sub-list{display:none;flex-direction:column;gap:4px;max-height:100px;overflow-y:auto}
-        .sidebar-footer{border-top:1px solid var(--border);padding-top:10px;display:flex;flex-direction:column;gap:4px;white-space:nowrap}
-        .btn-tool{background:none;border:none;color:var(--text);font-size:.8rem;text-align:left;padding:8px;cursor:pointer;border-radius:4px;transition:all 0.2s}
-        .btn-tool:hover{background:var(--surface);color:var(--primary)}
-        
-        /* Área Central */
-        .main-content{flex:1;display:flex;justify-content:center;align-items:center;padding:15px;overflow-y:auto;position:relative;transition:all 0.3s ease}
-        .card{background:var(--surface);padding:20px;border-radius:10px;border:1px solid rgba(255,255,255,0.05);box-shadow:0 10px 30px rgba(0,0,0,0.5);width:100%;max-width:360px;box-sizing:border-box;transition:background 0.3s}
-        .inline-title-edit{background:transparent;border:1px dashed transparent;color:#fff;font-size:1.3rem;font-weight:bold;text-align:center;width:100%;margin-bottom:10px;padding:2px}
-        .inline-title-edit:focus{border-color:var(--primary);outline:none;background:rgba(0,0,0,.3);border-radius:4px}
-        .form-group{margin-bottom:10px}
-        label{display:block;margin-bottom:4px;font-size:.8rem;color:var(--primary);text-transform:uppercase;letter-spacing:0.5px}
-        input[type="number"], select{width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg-main);color:#fff;box-sizing:border-box;font-size:.95rem;text-align:center;transition:background 0.3s}
-        input[type="number"]:focus, select:focus{border-color:var(--secondary);outline:none}
-        
-        .btn-save{width:100%;padding:10px;background:var(--gradient-neon);border:none;border-radius:6px;color:#fff;font-weight:bold;font-size:.95rem;cursor:pointer;margin-top:5px;box-shadow:0 0 10px rgba(0,0,0,0.3)}
-        .btn-save:hover{opacity:0.9;box-shadow:0 0 15px var(--primary)}
-        .progress-container{margin:15px 0 5px 0;background:var(--bg-main);border-radius:8px;border:1px solid var(--border);overflow:hidden}
-        .progress-bar{height:10px;background:var(--gradient-neon);box-shadow:0 0 8px var(--primary);width:0%;transition:width .3s}
-        .stats{text-align:center;font-size:1rem;font-weight:bold}
-        
-        .history{margin-top:15px;max-height:80px;overflow-y:auto;border-top:1px solid var(--border);padding-top:10px}
-        .history-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:5px}
-        .history h3{font-size:.8rem;color:var(--text-muted);margin:0}
-        .btn-clear-history{background:none;border:none;color:var(--danger);cursor:pointer;font-size:.75rem;padding:0;font-weight:bold}
-        .history-item{display:flex;justify-content:space-between;font-size:.75rem;color:var(--text-muted);margin-bottom:4px;padding-bottom:2px;border-bottom:1px dashed var(--border)}
-        
-        /* Modal da Central de Configurações */
-        .modal-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.75);backdrop-filter:blur(4px);display:none;justify-content:center;align-items:center;z-index:100}
-        .modal-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;width:90%;max-width:320px;box-shadow:0 0 25px var(--shadow)}
-        .modal-title{margin-top:0;font-size:1.2rem;color:var(--primary);text-align:center;margin-bottom:15px}
-        .modal-footer{display:flex;justify-content:flex-end;margin-top:15px}
-        .btn-close-modal{padding:8px 16px;background:var(--border);border:none;color:var(--text);border-radius:6px;cursor:pointer;font-weight:bold}
-        .btn-close-modal:hover{background:var(--surface-hover);color:var(--primary)}
+        /* 2. DEEP PURPLE GLASS (Místico, Neon Espacial, Arcano) */
+        :root[data-theme="royal"] {
+            --bg-main: #05050a;
+            --bg-sidebar: rgba(10, 10, 20, 0.8);
+            --surface: rgba(20, 20, 35, 0.5);
+            --surface-hover: rgba(30, 30, 55, 0.7);
+            --text: #e2e8f0;
+            --text-muted: #64748b;
+            --primary: #6366f1;
+            --secondary: #a5b4fc;
+            --gradient-accent: linear-gradient(135deg, #6366f1, #4f46e5);
+            --danger: #f43f5e;
+            --border: rgba(255, 255, 255, 0.05);
+            --shadow: rgba(0, 0, 0, 0.5);
+            --glass-blur: blur(20px);
+            
+            /* Ícones do Tema */
+            --ico-archive: "🔮";
+            --ico-trash: "⚰️";
+            --ico-settings: "👁️‍🗨️";
+        }
 
-        #importBackupInput{display:none}
-        .empty-state{text-align:center;color:var(--text-muted)}
-        .empty-state h2{color:var(--secondary)}
-    </style>
+        /* 3. AURORA EMERALD (Bio-Tech, Cyber, Matriz Orgânica) */
+        :root[data-theme="cyber"] {
+            --bg-main: #030712;
+            --bg-sidebar: rgba(17, 24, 39, 0.7);
+            --surface: rgba(31, 41, 55, 0.4);
+            --surface-hover: rgba(55, 65, 81, 0.6);
+            --text: #f9fafb;
+            --text-muted: #9ca3af;
+            --primary: #10b981;
+            --secondary: #34d399;
+            --gradient-accent: linear-gradient(135deg, #10b981, #06b6d4);
+            --danger: #f43f5e;
+            --border: rgba(255, 255, 255, 0.07);
+            --shadow: rgba(0, 0, 0, 0.4);
+            --glass-blur: blur(12px);
+            
+            /* Ícones do Tema */
+            --ico-archive: "💾";
+            --ico-trash: "☣️";
+            --ico-settings: "🛸";
+        }
+
+        /* 4. VOLCANIC ASH (Industrial, Sobrevivência, Destrutivo) */
+        :root[data-theme="magma"] {
+            --bg-main: #0c0a09;
+            --bg-sidebar: rgba(28, 25, 23, 0.7);
+            --surface: rgba(41, 37, 36, 0.45);
+            --surface-hover: rgba(68, 64, 60, 0.6);
+            --text: #fafaf9;
+            --text-muted: #a8a29e;
+            --primary: #f97316;
+            --secondary: #fb923c;
+            --gradient-accent: linear-gradient(135deg, #f97316, #dc2626);
+            --danger: #ef4444;
+            --border: rgba(255, 255, 255, 0.05);
+            --shadow: rgba(0, 0, 0, 0.6);
+            --glass-blur: blur(15px);
+            
+            /* Ícones do Tema */
+            --ico-archive: "📦";
+            --ico-trash: "🔥";
+            --ico-settings: "⚒️";
+        }
+
+        /* 5. CYBERPUNK NEON (Alto Contraste, Hackerspace, Retrofuturista) */
+        :root[data-theme="neon"] {
+            --bg-main: #000000;
+            --bg-sidebar: rgba(5, 5, 5, 0.85);
+            --surface: rgba(15, 15, 15, 0.9);
+            --surface-hover: rgba(25, 25, 25, 1);
+            --text: #39ff14; /* Verde Neon */
+            --text-muted: #00ffcc; /* Ciano Neon */
+            --primary: #ff007f; /* Rosa Choque */
+            --secondary: #39ff14;
+            --gradient-accent: linear-gradient(135deg, #ff007f, #9d00ff);
+            --danger: #ff0033;
+            --border: #39ff14;
+            --shadow: rgba(57, 255, 20, 0.15);
+            --glass-blur: blur(0px);
+            
+            /* Ícones do Tema */
+            --ico-archive: "💾";
+            --ico-trash: "⚡";
+            --ico-settings: "📟";
+        }
+
+        /* 6. PERFORMANCE ECO (Totalmente Otimizado, Sem Blurs, Hardware Fraco/Bateria) */
+        :root[data-theme="eco"] {
+            --bg-main: #121214;
+            --bg-sidebar: #1a1a1e;
+            --surface: #222227;
+            --surface-hover: #2d2d34;
+            --text: #eceff4;
+            --text-muted: #4c566a;
+            --primary: #88c0d0;
+            --secondary: #81a1c1;
+            --gradient-accent: #88c0d0;
+            --danger: #bf616a;
+            --border: #2e3440;
+            --shadow: none;
+            --glass-blur: blur(0px);
+            
+            /* Ícones do Tema */
+            --ico-archive: "📁";
+            --ico-trash: "🗑️";
+            --ico-settings: "⚙️";
+        }
+
+        /* Aplicação dos Pseudo-Elementos para troca dinâmica de ícones */
+        .dynamic-ico-archive::before { content: var(--ico-archive) " "; }
+        .dynamic-ico-trash::before { content: var(--ico-trash) " "; }
+        .dynamic-ico-settings::before { content: var(--ico-settings) " "; }
+
+        /* ==========================================================================
+           ESTILOS DE INTERFACE E ESTRUTURA
+           ========================================================================== */
+
+        body {
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: var(--bg-main);
+            color: var(--text);
+            margin: 0;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+            transition: background 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+            position: relative;
+        }
+
+        /* Fundo com degradê leve para os temas convencionais */
+        :root:not([data-theme="neon"]):not([data-theme="magma"]):not([data-theme="eco"]) body {
+            background-image: radial-gradient(circle at 80% 20%, rgba(59, 130, 246, 0.06) 0%, transparent 50%),
+                              radial-gradient(circle at 20% 80%, rgba(139, 92, 246, 0.04) 0%, transparent 50%);
+        }
+        
+        /* Canvas para Efeitos de Fundo */
+        #fxCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            pointer-events: none;
+            display: none;
+        }
+        :root[data-theme="neon"] #fxCanvas, :root[data-theme="magma"] #fxCanvas {
+            display: block;
+        }
+
+        body.rtl { flex-direction: row-reverse; direction: rtl; }
+        body.rtl .sidebar { border-right: none; border-left: 1px solid var(--border); }
+        body.rtl .btn-new-book { text-align: right; }
+        body.rtl .btn-floating-trigger { left: auto; right: 20px; }
+        body.rtl .btn-tool { text-align: right; }
+
+        .sidebar {
+            width: 260px;
+            background: var(--bg-sidebar);
+            backdrop-filter: var(--glass-blur);
+            -webkit-backdrop-filter: var(--glass-blur);
+            display: flex;
+            flex-direction: column;
+            padding: 20px 15px;
+            box-sizing: border-box;
+            border-right: 1px solid var(--border);
+            flex-shrink: 0;
+            transition: all 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+            position: relative;
+            z-index: 10;
+        }
+        .sidebar.collapsed { width: 0; padding: 20px 0; overflow: hidden; border-color: transparent; }
+        
+        .sidebar-top-row { display: flex; gap: 10px; align-items: center; margin-bottom: 20px; width: 100%; }
+        
+        .btn-new-book {
+            flex: 1;
+            background: var(--gradient-accent);
+            color: #fff;
+            border: none;
+            border-radius: 12px;
+            padding: 12px 16px;
+            font-size: .9rem;
+            font-weight: 600;
+            text-align: left;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: all 0.3s;
+            white-space: nowrap;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2);
+        }
+        :root[data-theme="eco"] .btn-new-book { color: #121214; box-shadow: none; }
+        .btn-new-book:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4); opacity: 0.95; }
+        :root[data-theme="eco"] .btn-new-book:hover { box-shadow: none; }
+        
+        .btn-toggle-sidebar {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            color: var(--text);
+            border-radius: 12px;
+            width: 42px;
+            height: 42px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.9rem;
+            transition: all 0.3s;
+            flex-shrink: 0;
+        }
+        .btn-toggle-sidebar:hover { background: var(--surface-hover); border-color: var(--text-muted); }
+        
+        .btn-floating-trigger {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: var(--surface);
+            backdrop-filter: var(--glass-blur);
+            border: 1px solid var(--border);
+            color: var(--text);
+            border-radius: 12px;
+            width: 42px;
+            height: 42px;
+            cursor: pointer;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+            z-index: 5;
+            transition: all 0.3s;
+            box-shadow: 0 4px 12px var(--shadow);
+        }
+        .sidebar.collapsed ~ .btn-floating-trigger { display: flex; }
+        .btn-floating-trigger:hover { background: var(--surface-hover); }
+
+        .book-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; padding-right: 2px; }
+        .book-list::-webkit-scrollbar { width: 4px; }
+        .book-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
+        
+        .book-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 14px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: .88rem;
+            border: 1px solid transparent;
+            transition: all 0.25s;
+            background: transparent;
+        }
+        .book-item:hover { background: var(--surface-hover); }
+        .book-item.active {
+            background: var(--surface);
+            border-color: rgba(255, 255, 255, 0.08);
+            box-shadow: inset 0 1px 1px rgba(255,255,255,0.1), 0 4px 12px var(--shadow);
+            color: #fff;
+            font-weight: 500;
+        }
+        :root[data-theme="eco"] .book-item.active { box-shadow: none; border-color: var(--primary); color: var(--primary); }
+        :root[data-theme="neon"] .book-item.active { color: #39ff14; }
+        .book-title-tab { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 75%; text-align: left; }
+        body.rtl .book-title-tab { text-align: right; }
+        .actions-tab { display: none; gap: 8px; }
+        .book-item:hover .actions-tab { display: flex; }
+        .btn-action-tab { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 0.9rem; padding: 0; transition: color 0.2s; }
+        .btn-action-tab:hover { color: var(--primary); }
+        .btn-action-tab.del:hover { color: var(--danger); }
+        
+        .sub-section { margin-top: 15px; border-top: 1px solid var(--border); padding-top: 10px; }
+        .sub-header { display: flex; justify-content: space-between; align-items: center; padding: 6px 4px; font-size: 0.78rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; cursor: pointer; }
+        .sub-header:hover { color: var(--text); }
+        .sub-list { display: none; flex-direction: column; gap: 4px; max-height: 120px; overflow-y: auto; }
+        .sub-list.visible { display: flex; }
+        
+        .sidebar-footer { border-top: 1px solid var(--border); padding-top: 15px; display: flex; flex-direction: column; gap: 6px; }
+        .btn-tool { background: none; border: none; color: var(--text-muted); font-size: .82rem; text-align: left; padding: 10px 12px; cursor: pointer; border-radius: 10px; transition: all 0.2s; }
+        .btn-tool:hover { background: var(--surface-hover); color: var(--text); }
+        
+        .main-content { flex: 1; display: flex; justify-content: center; align-items: center; padding: 30px; overflow-y: auto; position: relative; z-index: 2; }
+        
+        .card {
+            background: var(--surface);
+            backdrop-filter: var(--glass-blur);
+            -webkit-backdrop-filter: var(--glass-blur);
+            padding: 30px;
+            border-radius: 24px;
+            border: 1px solid var(--border);
+            box-shadow: 0 20px 50px var(--shadow), inset 0 1px 1px rgba(255,255,255,0.05);
+            width: 100%;
+            max-width: 420px;
+            box-sizing: border-box;
+            transition: all 0.4s ease;
+        }
+        :root[data-theme="eco"] .card { box-shadow: none; }
+        
+        .inline-title-edit {
+            background: transparent;
+            border: none;
+            color: #fff;
+            font-size: 1.5rem;
+            font-weight: 700;
+            text-align: center;
+            width: 100%;
+            margin-bottom: 20px;
+            padding: 4px;
+            border-bottom: 1px solid transparent;
+            transition: all 0.3s;
+        }
+        :root[data-theme="eco"] .inline-title-edit { color: var(--text); }
+        :root[data-theme="neon"] .inline-title-edit { color: #39ff14; }
+        .inline-title-edit:focus { border-bottom-color: var(--primary); outline: none; }
+        
+        .form-group { margin-bottom: 16px; text-align: left; }
+        body.rtl .form-group { text-align: right; }
+        
+        label { display: block; margin-bottom: 6px; font-size: .75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.8px; font-weight: 600; }
+        
+        input[type="text"], input[type="number"], select {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            background: rgba(0, 0, 0, 0.2);
+            color: #fff;
+            box-sizing: border-box;
+            font-size: .95rem;
+            text-align: center;
+            transition: all 0.3s;
+        }
+        :root[data-theme="eco"] input[type="text"], :root[data-theme="eco"] input[type="number"], :root[data-theme="eco"] select { background: #1a1a1e; color: var(--text); }
+        :root[data-theme="neon"] input[type="text"], :root[data-theme="neon"] input[type="number"], :root[data-theme="neon"] select { color: #39ff14; background: #000000; }
+        input[type="text"]:focus, input[type="number"]:focus, select:focus { border-color: var(--primary); outline: none; background: rgba(0, 0, 0, 0.3); box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15); }
+        :root[data-theme="eco"] input[type="text"]:focus, :root[data-theme="eco"] input[type="number"]:focus, :root[data-theme="eco"] select:focus { box-shadow: none; }
+        :root[data-theme="neon"] input[type="text"]:focus, :root[data-theme="neon"] input[type="number"]:focus, :root[data-theme="neon"] select:focus { box-shadow: 0 0 0 3px rgba(57, 255, 20, 0.2); }
+
+        .btn-save {
+            width: 100%;
+            padding: 14px;
+            background: var(--gradient-accent);
+            border: none;
+            border-radius: 14px;
+            color: #fff;
+            font-weight: 600;
+            font-size: .95rem;
+            cursor: pointer;
+            margin-top: 10px;
+            box-shadow: 0 4px 15px rgba(59, 130, 246, 0.2);
+            transition: all 0.3s;
+        }
+        :root[data-theme="eco"] .btn-save { color: #121214; box-shadow: none; }
+        .btn-save:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4); opacity: 0.95; }
+        :root[data-theme="eco"] .btn-save:hover { box-shadow: none; }
+        
+        .progress-container { margin: 25px 0 8px 0; background: rgba(255,255,255,0.04); border-radius: 10px; height: 8px; overflow: hidden; position: relative; }
+        .progress-bar { height: 100%; background: var(--gradient-accent); width: 0%; transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1); border-radius: 10px; }
+        .stats { text-align: center; font-size: 0.85rem; color: var(--text-muted); font-weight: 500; }
+        
+        .history { margin-top: 25px; max-height: 110px; overflow-y: auto; border-top: 1px solid var(--border); padding-top: 15px; }
+        .history-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .history h3 { font-size: .75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin: 0; }
+        .btn-clear-history { background: none; border: none; color: var(--danger); cursor: pointer; font-size: .75rem; opacity: 0.7; font-weight: 600; transition: opacity 0.2s; }
+        .btn-clear-history:hover { opacity: 1; }
+        .history-item { display: flex; justify-content: space-between; font-size: .8rem; color: var(--text-muted); margin-bottom: 6px; padding-bottom: 4px; border-bottom: 1px dashed rgba(255,255,255,0.03); }
+        
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(3, 7, 18, 0.6); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); display: none; justify-content: center; align-items: center; z-index: 100; animation: fadeIn 0.3s ease; }
+        :root[data-theme="eco"] .modal-overlay { backdrop-filter: none; background: rgba(0, 0, 0, 0.75); }
+        .modal-overlay.visible { display: flex; }
+        .modal-card { background: var(--bg-sidebar); backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur); border: 1px solid var(--border); border-radius: 24px; padding: 30px; width: 90%; max-width: 380px; box-shadow: 0 25px 60px var(--shadow); max-height: 85vh; overflow-y: auto; }
+        :root[data-theme="eco"] .modal-card { box-shadow: none; }
+        .modal-title { margin-top: 0; font-size: 1.25rem; font-weight: 700; color: #fff; text-align: center; margin-bottom: 20px; }
+        :root[data-theme="eco"] .modal-title { color: var(--text); }
+        :root[data-theme="neon"] .modal-title { color: #39ff14; }
+        .modal-footer { display: flex; justify-content: flex-end; margin-top: 20px; }
+        .btn-close-modal { padding: 10px 20px; background: var(--surface); border: 1px solid var(--border); color: var(--text); border-radius: 12px; cursor: pointer; font-weight: 600; font-size: 0.88rem; transition: all 0.2s; }
+        .btn-close-modal:hover { background: var(--surface-hover); }
+
+        .profile-section { border: 1px solid var(--border); border-radius: 16px; padding: 16px; margin-bottom: 20px; background: rgba(0,0,0,0.15); }
+        .profile-badge { font-size: 0.9rem; font-weight: 600; color: #fff; text-align: center; margin-bottom: 15px; }
+        :root[data-theme="eco"] .profile-badge { color: var(--text); }
+        :root[data-theme="neon"] .profile-badge { color: #00ffcc; }
+        .btn-profile-action { width: 100%; padding: 10px; background: var(--surface); border: 1px solid var(--border); color: var(--text); border-radius: 10px; cursor: pointer; font-size: 0.82rem; font-weight: 500; margin-top: 6px; transition: all 0.2s; }
+        .btn-profile-action:hover { background: var(--surface-hover); border-color: var(--text-muted); }
+        
+        #importBackupInput, #importProfileInput { display: none; }
+        .empty-state { text-align: center; color: var(--text-muted); }
+        .empty-state h2 { color: #fff; font-size: 1.4rem; margin-bottom: 8px; }
+        :root[data-theme="eco"] .empty-state h2 { color: var(--text); }
+        :root[data-theme="neon"] .empty-state h2 { color: #39ff14; }
+        
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        /* ==========================================================================
+           OTIMIZAÇÕES DE MÍDIA PARA JANELAS POP-UP E MINI TELAS (360px de largura)
+           ========================================================================== */
+        @media (max-width: 600px) {
+            .sidebar {
+                position: absolute;
+                left: 0;
+                top: 0;
+                height: 100%;
+                width: 230px;
+                box-shadow: 5px 0 25px rgba(0,0,0,0.5);
+            }
+            .sidebar.collapsed {
+                width: 0;
+                padding-left: 0;
+                padding-right: 0;
+            }
+            .sidebar.collapsed ~ .btn-floating-trigger {
+                display: flex;
+            }
+            .btn-floating-trigger {
+                display: flex;
+                top: 15px;
+                left: 15px;
+                width: 36px;
+                height: 36px;
+                font-size: 0.9rem;
+            }
+            .main-content {
+                padding: 12px;
+            }
+            .card {
+                padding: 16px;
+                border-radius: 16px;
+            }
+            .inline-title-edit {
+                font-size: 1.3rem;
+                margin-bottom: 12px;
+            }
+            input[type="text"], input[type="number"], select {
+                padding: 10px 12px;
+                font-size: 0.9rem;
+            }
+            .btn-save {
+                padding: 12px;
+                font-size: 0.9rem;
+            }
+        }
+    </style>
 </head>
 <body>
 
-    <div class="sidebar" id="sidebar">
-        <div class="sidebar-top-row">
-            <button class="btn-new-book" id="lblNewBook" onclick="createNewBook()">➕ Novo livro</button>
-            <button class="btn-toggle-sidebar" onclick="toggleSidebar()" title="Recolher Menu">◀</button>
-        </div>
-        
-        <div class="book-list" id="bookList"></div>
-        
-        <div class="sub-section">
-            <div class="sub-header" onclick="toggleSection('archiveList','archiveArrow')">
-                <span id="lblArchiveSec">📁 Arquivados (0)</span>
-                <span id="archiveArrow">▶</span>
-            </div>
-            <div class="sub-list" id="archiveList"></div>
-        </div>
+    <canvas id="fxCanvas"></canvas>
 
-        <div class="sub-section">
-            <div class="sub-header" onclick="toggleSection('trashList','trashArrow')">
-                <span id="lblTrashSec">🗑️ Lixeira (0/5)</span>
-                <span id="trashArrow">▶</span>
-            </div>
-            <div class="sub-list" id="trashList"></div>
-        </div>
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-top-row">
+            <button class="btn-new-book" id="lblNewBook" onclick="createNewBook()">➕ Novo livro</button>
+            <button class="btn-toggle-sidebar" id="lblArrowSide" onclick="toggleSidebar()">◀</button>
+        </div>
+        
+        <div class="book-list" id="bookList"></div>
+        
+        <div class="sub-section">
+            <div class="sub-header" onclick="toggleSection('archiveList','archiveArrow')">
+                <span id="lblArchiveSec" class="dynamic-ico-archive">Arquivados (0)</span>
+                <span id="archiveArrow">▶</span>
+            </div>
+            <div class="sub-list" id="archiveList"></div>
+        </div>
 
-        <div class="sidebar-footer">
-            <button class="btn-tool" id="lblSettingsBtn" onclick="openSettings()">⚙️ Configurações</button>
-            <button class="btn-tool" id="lblExportBtn" onclick="exportBackup()">📥 Exportar Backup</button>
-            <button class="btn-tool" id="lblImportBtn" onclick="document.getElementById('importBackupInput').click()">📤 Importar Backup</button>
-            <input type="file" id="importBackupInput" accept=".json" onchange="importBackup(event)">
-        </div>
-    </div>
+        <div class="sub-section">
+            <div class="sub-header" onclick="toggleSection('trashList','trashArrow')">
+                <span id="lblTrashSec" class="dynamic-ico-trash">Lixeira (0/5)</span>
+                <span id="trashArrow">▶</span>
+            </div>
+            <div class="sub-list" id="trashList"></div>
+        </div>
 
-    <button class="btn-floating-trigger" onclick="toggleSidebar()" title="Expandir Menu">☰</button>
+        <div class="sidebar-footer">
+            <button class="btn-tool dynamic-ico-settings" id="lblSettingsBtn" onclick="openSettings()">Perfil / Configurações</button>
+            <button class="btn-tool" id="lblPopUpBtn" onclick="openInPopUp()">🔲 Abrir em Pop-up</button>
+            <button class="btn-tool" id="lblExportBtn" onclick="exportBackup()">📥 Exportar Tudo</button>
+            <button class="btn-tool" id="lblImportBtn" onclick="document.getElementById('importBackupInput').click()">📤 Importar Tudo</button>
+            <input type="file" id="importBackupInput" accept=".json" onchange="importBackup(event)">
+        </div>
+    </div>
 
-    <div class="main-content">
-        <div class="card" id="editorCard" style="display:none">
-            <input type="text" id="bookTitle" class="inline-title-edit" oninput="updateBookTitle(this.value)">
-            <div class="progress-container"><div class="progress-bar" id="progressBar"></div></div>
-            <div class="stats" id="stats">0/0 págs (0%)</div>
-            <br>
-            <div class="form-group">
-                <label id="lblMeta" for="totalPages">Meta Total</label>
-                <input type="number" id="totalPages" min="1">
-            </div>
-            <div class="form-group">
-                <label id="lblAtual" for="currentPage">Página Atual</label>
-                <input type="number" id="currentPage" min="0">
-            </div>
-            <button class="btn-save" id="lblSaveBtn" onclick="saveProgress()">Salvar Marcador</button>
-            <div class="history">
-                <div class="history-header">
-                    <h3 id="lblHistoryTitle">Últimas atualizações:</h3>
-                    <button class="btn-clear-history" id="lblClearHistory" onclick="clearBookHistory()">Limpar</button>
-                </div>
-                <div id="historyLog"></div>
-            </div>
-        </div>
-        <div id="emptyState" class="empty-state">
-            <h2 id="lblEmptyTitle">Nenhum livro ativo 📖</h2>
-            <p id="lblEmptyDesc">Crie ou selecione um livro na barra lateral.</p>
-        </div>
-    </div>
+    <button class="btn-floating-trigger" onclick="toggleSidebar()" title="Menu">☰</button>
 
-    <!-- Central de Configurações Modal -->
-    <div class="modal-overlay" id="settingsModal">
-        <div class="modal-card">
-            <h3 class="modal-title" id="lblModalTitle">⚙️ Configurações</h3>
-            
-            <div class="form-group">
-                <label id="lblConfigLang">Idioma / Language</label>
-                <select id="settingLang" onchange="changeLanguage(this.value)">
-                    <option value="pt">Português (PT-BR)</option>
-                    <option value="en">English (EN)</option>
-                </select>
-            </div>
-            
-            <div class="form-group" style="margin-top: 15px;">
-                <label id="lblConfigTheme">Tema da Interface</label>
-                <select id="settingTheme" onchange="changeTheme(this.value)">
-                    <option value="cyber">Cyberpunk (Azul / Roxo)</option>
-                    <option value="br">Brasil Neon (Verde / Amarelo)</option>
-                    <option value="magma">Magma Neon (Laranja / Vermelho)</option>
-                </select>
-            </div>
+    <div class="main-content">
+        <div class="card" id="editorCard" style="display:none">
+            <input type="text" id="bookTitle" class="inline-title-edit" oninput="updateBookTitle(this.value)">
+            <div class="progress-container"><div class="progress-bar" id="progressBar"></div></div>
+            <div class="stats" id="stats">0/0 págs (0%)</div>
+            <br>
+            <div class="form-group">
+                <label id="lblMeta" for="totalPages">Meta Total</label>
+                <input type="number" id="totalPages" min="1">
+            </div>
+            <div class="form-group">
+                <label id="lblAtual" for="currentPage">Página Atual</label>
+                <input type="number" id="currentPage" min="0">
+            </div>
+            <button class="btn-save" id="lblSaveBtn" onclick="saveProgress()">Salvar Marcador</button>
+            <div class="history">
+                <div class="history-header">
+                    <h3 id="lblHistoryTitle">Últimas atualizações:</h3>
+                    <button class="btn-clear-history" id="lblClearHistory" onclick="clearBookHistory()">Limpar</button>
+                </div>
+                <div id="historyLog"></div>
+            </div>
+        </div>
+        <div id="emptyState" class="empty-state">
+            <h2 id="lblEmptyTitle">Nenhum livro ativo 📖</h2>
+            <p id="lblEmptyDesc">Crie ou selecione um livro na barra lateral.</p>
+        </div>
+    </div>
 
-            <div class="modal-footer">
-                <button class="btn-close-modal" id="lblCloseModal" onclick="closeSettings()">Fechar</button>
-            </div>
-        </div>
-    </div>
+    <div class="modal-overlay" id="settingsModal">
+        <div class="modal-card">
+            <h3 class="modal-title" id="lblModalTitle">👤 Perfil do Escritor</h3>
+            
+            <div class="profile-section">
+                <div class="profile-badge" id="currentProfileName">Perfil: Autor Padrão</div>
+                <div class="form-group">
+                    <label id="lblChangeProfile">Mudar Nome do Perfil</label>
+                    <input type="text" id="profileNameInput" placeholder="..." onchange="renameProfile(this.value)">
+                </div>
+                <hr style="border:0; border-top:1px solid var(--border); margin:15px 0;">
+                <label id="lblLinkDevice">Vincular a outros dispositivos</label>
+                <button class="btn-profile-action" id="lblExpProfBtn" onclick="exportProfileOnly()">📥 Exportar este Perfil</button>
+                <button class="btn-profile-action" id="lblImpProfBtn" onclick="document.getElementById('importProfileInput').click()">📤 Importar Perfil Externo</button>
+                <input type="file" id="importProfileInput" accept=".json" onchange="importProfileOnly(event)">
+            </div>
 
-    <script>
-        const APP_VERSION = "2.4.0";
-        let booksData = {}, activeBookId = null, currentTheme = 'cyber', currentLang = 'pt';
-        let vis = { archiveList: false, trashList: false };
+            <div class="form-group">
+                <label id="lblConfigLang">Idioma / Language</label>
+                <select id="settingLang" onchange="changeLanguage(this.value)">
+                    <option value="pt">Português (PT-BR)</option>
+                    <option value="en">English (EN)</option>
+                    <option value="es">Español (ES)</option>
+                    <option value="zh">中文 (Mandarim)</option>
+                    <option value="ar">العربية (Árabe)</option>
+                    <option value="he">עברית (Hebraico)</option>
+                </select>
+            </div>
+            
+            <div class="form-group" style="margin-top: 15px;">
+                <label id="lblConfigTheme">Tema da Interface</label>
+                <select id="settingTheme" onchange="changeTheme(this.value)">
+                    <option value="megamix">✨ Nordic Glass (Padrão)</option>
+                    <option value="royal">🔮 Deep Purple Glass</option>
+                    <option value="cyber">🌿 Aurora Emerald</option>
+                    <option value="magma">🔥 Volcanic Ash</option>
+                    <option value="neon">⚡ Cyberpunk Neon</option>
+                    <option value="eco">🍃 Performance Eco (Otimizado)</option>
+                </select>
+            </div>
 
-        const i18n = {
-            pt: {
-                newBook: "➕ Novo livro", archiveSec: "📁 Arquivados", trashSec: "🗑️ Lixeira",
-                settingsBtn: "⚙️ Configurações", exportBtn: "📥 Exportar Backup", importBtn: "📤 Importar Backup",
-                meta: "Meta Total", atual: "Página Atual", saveBtn: "Salvar Marcador",
-                historyTitle: "Últimas atualizações:", clearHistory: "Limpar", emptyTitle: "Nenhum livro ativo 📖",
-                emptyDesc: "Crie ou selecione um livro na barra lateral.", modalTitle: "⚙️ Configurações",
-                configLang: "Idioma / Language", configTheme: "Tema da Interface", closeModal: "Fechar",
-                alertMaxTrash: "Página atual maior que o total!", confirmHardDelete: "Excluir permanentemente \"{title}\"? Não dá para reverter.",
-                confirmImport: "Substituir dados atuais?", confirmClearHistory: "Limpar histórico?",
-                fallbackTitle: "Novo Livro", untitiled: "Sem Título", pages: "págs", invalidJson: "JSON inválido.",
-                themeCyber: "Cyberpunk (Azul / Roxo)", themeBr: "Brasil Neon (Verde / Amarelo)", themeMagma: "Magma Neon (Laranja / Vermelho)"
-            },
-            en: {
-                newBook: "➕ New Book", archiveSec: "📁 Archived", trashSec: "🗑️ Trash",
-                settingsBtn: "⚙️ Settings", exportBtn: "📥 Export data", importBtn: "📤 Import data",
-                meta: "Total Goal", atual: "Current Page", saveBtn: "Save Progress",
-                historyTitle: "Latest updates:", clearHistory: "Clear", emptyTitle: "No active book 📖",
-                emptyDesc: "Create or select a book in the sidebar.", modalTitle: "⚙️ Settings",
-                configLang: "Language / Idioma", configTheme: "Interface Theme", closeModal: "Close",
-                alertMaxTrash: "Current page exceeds total goal!", confirmHardDelete: "Permanently delete \"{title}\"? This cannot be undone.",
-                confirmImport: "Overwrite current data?", confirmClearHistory: "Clear log history?",
-                fallbackTitle: "New Book", untitiled: "Untitled", pages: "pgs", invalidJson: "Invalid JSON.",
-                themeCyber: "Cyberpunk (Blue / Purple)", themeBr: "Brazil Neon (Green / Yellow)", themeMagma: "Magma Neon (Orange / Red)"
-            }
-        };
+            <div class="modal-footer">
+                <button class="btn-close-modal" id="lblCloseModal" onclick="closeSettings()">Fechar</button>
+            </div>
+        </div>
+    </div>
 
-        window.onload = function() {
-            if(window.history&&window.history.replaceState){window.history.replaceState(null,document.title,window.location.href)}
-            
-            currentTheme = localStorage.getItem('wt_theme') || 'cyber';
-            currentLang = localStorage.getItem('wt_lang') || 'pt';
-            
-            document.documentElement.setAttribute('data-theme', currentTheme);
-            document.getElementById('settingTheme').value = currentTheme;
-            document.getElementById('settingLang').value = currentLang;
+    <script>
+        const APP_VERSION = "4.6.0";
+        let booksData = {}, activeBookId = null, currentTheme = 'megamix', currentLang = 'pt', profileName = "Autor Padrão";
+        let vis = { archiveList: false, trashList: false };
 
-            const sideCollapsed = localStorage.getItem('wt_side_collapsed') === 'true';
-            if(sideCollapsed) document.getElementById('sidebar').classList.add('collapsed');
+        let fxInterval = null;
+        const canvas = document.getElementById('fxCanvas');
+        const ctx = canvas.getContext('2d');
+        let embers = [];
+        let rainDrops = [];
 
-            try {
-                const saved = localStorage.getItem('wt_b');
-                if (saved) {
-                    const parsed = JSON.parse(saved);
-                    if (typeof parsed === 'object' && parsed !== null) {
-                        booksData = parsed;
-                        migrateDataSchema();
-                    }
-                }
-            } catch (e) { console.error(e); }
+        const i18n = {
+            pt: {
+                newBook: "➕ Novo livro", archiveSec: "Arquivados", trashSec: "Lixeira",
+                settingsBtn: "Perfil / Configurações", exportBtn: "📥 Exportar Tudo", importBtn: "📤 Importar Tudo",
+                meta: "Meta Total", atual: "Página Atual", saveBtn: "Salvar Marcador",
+                historyTitle: "Últimas atualizações:", clearHistory: "Limpar", emptyTitle: "Nenhum livro ativo 📖",
+                emptyDesc: "Crie ou selecione um livro na barra lateral.", modalTitle: "👤 Perfil do Escritor",
+                configLang: "Idioma / Language", configTheme: "Tema da Interface", closeModal: "Fechar",
+                alertMaxTrash: "Página atual maior que o total!", confirmHardDelete: "Excluir permanentemente \"{title}\"? Não dá para reverter.",
+                confirmImport: "Substituir livros antigos?", confirmClearHistory: "Limpar histórico?",
+                fallbackTitle: "Novo Livro", untitiled: "Sem Título", pages: "págs", invalidJson: "JSON inválido.",
+                labelPage: "Pág", labelProfile: "Perfil", changeProfile: "Mudar Nome do Perfil",
+                linkDevice: "Vincular a outros dispositivos", expProf: "📥 Exportar este Perfil", impProf: "📤 Importar Perfil Externo",
+                confirmImportProf: "Deseja importar e substituir seu espaço pelo perfil de \"{name}\"?", invalidProf: "Este arquivo não é um formato de perfil válido.", errFile: "Erro ao carregar o arquivo.",
+                tMix: "✨ Nordic Glass (Padrão)", tRoyal: "🔮 Deep Purple Glass", tCyber: "🌿 Aurora Emerald", tMagma: "🔥 Volcanic Ash", tNeon: "⚡ Cyberpunk Neon", tEco: "🍃 Performance Eco (Otimizado)",
+                popUpBtn: "🔲 Abrir em Pop-up"
+            },
+            en: {
+                newBook: "➕ New Book", archiveSec: "Archived", trashSec: "Trash",
+                settingsBtn: "Profile / Settings", exportBtn: "📥 Export All", importBtn: "📤 Import All",
+                meta: "Total Goal", atual: "Current Page", saveBtn: "Save Progress",
+                historyTitle: "Latest updates:", clearHistory: "Clear", emptyTitle: "No active book 📖",
+                emptyDesc: "Create or select a book in the sidebar.", modalTitle: "👤 Writer Profile",
+                configLang: "Language / Idioma", configTheme: "Interface Theme", closeModal: "Close",
+                alertMaxTrash: "Current page exceeds total goal!", confirmHardDelete: "Permanently delete \"{title}\"? This cannot be undone.",
+                confirmImport: "Overwrite current books?", confirmClearHistory: "Clear log history?",
+                fallbackTitle: "New Book", untitiled: "Untitled", pages: "pgs", invalidJson: "Invalid JSON.",
+                labelPage: "Pg", labelProfile: "Profile", changeProfile: "Change Profile Name",
+                linkDevice: "Link to other devices", expProf: "📥 Export this Profile", impProf: "📤 Import External Profile",
+                confirmImportProf: "Do you want to import and replace your workspace with \"{name}\"'s profile?", invalidProf: "This file is not a valid profile format.", errFile: "Error loading file.",
+                tMix: "✨ Nordic Glass (Default)", tRoyal: "🔮 Deep Purple Glass", tCyber: "🌿 Aurora Emerald", tMagma: "🔥 Volcanic Ash", tNeon: "⚡ Cyberpunk Neon", tEco: "🍃 Performance Eco (Lightweight)",
+                popUpBtn: "🔲 Open Pop-up"
+            },
+            es: {
+                newBook: "➕ Nuevo Libro", archiveSec: "Archivados", trashSec: "Papelera",
+                settingsBtn: "Perfil / Ajustes", exportBtn: "📥 Exportar Todo", importBtn: "📤 Importar Todo",
+                meta: "Meta Total", atual: "Página Actual", saveBtn: "Guardar Progreso",
+                historyTitle: "Últimas actualizaciones:", clearHistory: "Limpiar", emptyTitle: "Ningún libro activo 📖",
+                emptyDesc: "Crea o selecciona un libro en la barra lateral.", modalTitle: "👤 Perfil del Escritor",
+                configLang: "Idioma / Language", configTheme: "Tema de la Interfaz", closeModal: "Cerrar",
+                alertMaxTrash: "¡La página actual supera la meta total!", confirmHardDelete: "¿Eliminar permanentemente \"{title}\"? No se puede deshacer.",
+                confirmImport: "¿Sobrescribir os livros atuais?", confirmClearHistory: "¿Limpar el historial?",
+                fallbackTitle: "Nuevo Libro", untitiled: "Sin Título", pages: "págs", invalidJson: "JSON inválido.",
+                labelPage: "Pág", labelProfile: "Perfil", changeProfile: "Cambiar Nombre del Perfil",
+                linkDevice: "Vincular a outros dispositivos", expProf: "📥 Exportar este Perfil", impProf: "📤 Importar Perfil Externo",
+                confirmImportProf: "¿Desea importar y reemplazar su espaço con el perfil de \"{name}\"?", invalidProf: "Este arquivo no es un formato de perfil válido.", errFile: "Error al cargar el archivo.",
+                tMix: "✨ Nordic Glass (Por defecto)", tRoyal: "🔮 Deep Purple Glass", tCyber: "🌿 Aurora Emerald", tMagma: "🔥 Volcanic Ash", tNeon: "⚡ Cyberpunk Neon", tEco: "🍃 Performance Eco (Optimizado)",
+                popUpBtn: "🔲 Ventana Pop-up"
+            },
+            zh: {
+                newBook: "➕ 新建书籍", archiveSec: "已归档", trashSec: "回收站",
+                settingsBtn: "个人资料 / 设置", exportBtn: "📥 导出全部", importBtn: "📤 导入全部",
+                meta: "总目标页", atual: "当前页数", saveBtn: "保存进度",
+                historyTitle: "最新更新:", clearHistory: "清除", emptyTitle: "暂无活动书籍 📖",
+                emptyDesc: "请在侧边栏创建或选择一本书籍。", modalTitle: "👤 作者个人资料",
+                configLang: "语言 / Language", configTheme: "界面主题", closeModal: "关闭",
+                alertMaxTrash: "当前页数不能超过总目标页！", confirmHardDelete: "确认永久删除 \"{title}\"？此操作无法撤销。",
+                confirmImport: "确认覆盖当前所有书籍数据吗？", confirmClearHistory: "确认清除历史记录吗？",
+                fallbackTitle: "新书", untitiled: "未命名", pages: "页", invalidJson: "无效的 JSON 文件。",
+                labelPage: "页码", labelProfile: "个人资料", changeProfile: "修改资料名称",
+                linkDevice: "同步至其他设备", expProf: "📥 导出此资料", impProf: "📤 导入外部资料",
+                confirmImportProf: "是否确认导入并替换为 \"{name}\" 的个人资料空间？", invalidProf: "这不是一个有效的个人资料格式文件。", errFile: "文件加载错误。",
+                tMix: "✨ 北欧微光玻璃 (默认)", tRoyal: "🔮 深紫微光玻璃", tCyber: "🌿 极光翡翠", tMagma: "🔥 火山灰烬", tNeon: "⚡ 赛博朋克霓虹", tEco: "🍃 环保性能模式 (精简)",
+                popUpBtn: "🔲 弹出窗口"
+            },
+            ar: {
+                newBook: "➕ كتاب جديد", archiveSec: "أرشفة", trashSec: "سلة المهملات",
+                settingsBtn: "الملف الشخصي / الإعدادات", exportBtn: "📥 تصدير الكل", importBtn: "📤 استيراد الكل",
+                meta: "الهدف الإجمالي", atual: "الصفحة الحالية", saveBtn: "حفظ التقدم",
+                historyTitle: "آخر التحديثات:", clearHistory: "مسح", emptyTitle: "لا يوجد كتاب نشط 📖",
+                emptyDesc: "قم بإنشاء أو اختيار كتاب من القائمة الجانبية.", modalTitle: "👤 ملف الكاتب الشخصي",
+                configLang: "اللغة / Language", configTheme: "مظهر الواجهة", closeModal: "إغلاق",
+                alertMaxTrash: "الصفحة الحالية تتجاوز الهدف الإجمالي!", confirmHardDelete: "هل تريد حذف \"{title}\" نهائيًا؟ لا يمكن التراجع عن هذا الإجراء.",
+                confirmImport: "هل تريد استبدال الكتب الحالية？", confirmClearHistory: "هل تريد مسح السجل؟",
+                fallbackTitle: "كتاب جديد", untitiled: "بلا عنوان", pages: "صفحات", invalidJson: "ملف JSON غير صالح.",
+                labelPage: "صفحة", labelProfile: "الملف الشخصي", changeProfile: "تغيير اسم الملف الشخصي",
+                linkDevice: "ربط بأجهزة أخرى", expProf: "📥 تصدير هذا الملف الشخصي", impProf: "📤 استيراد ملف شخصي خارجي",
+                confirmImportProf: "هل تريد استيراد واستبدال مساحتك بملف شخصي لـ \"{name}\"؟", invalidProf: "هذا الملف ليس بتنسيق ملف شخصي صالح.", errFile: "خطأ في تحميل الملف.",
+                tMix: "✨ الزجاج الشمالい (افتراضي)", tRoyal: "🔮 زجاج أرجواني عميق", tCyber: "🌿 زمرد الشفق", tMagma: "🔥 الرماد البركاني", tNeon: "⚡ نيون سايببربانك", tEco: "🍃 الأداء الاقتصادي (مُحسّن)",
+                popUpBtn: "🔲 فتح كنافذة منفصلة"
+            },
+            he: {
+                newBook: "➕ ספר חדש", archiveSec: "בארכיון", trashSec: "פח אשפה",
+                settingsBtn: "פרופיל / הגדרות", exportBtn: "📥 ייצוא הכל", importBtn: "📤 ייבא הכל",
+                meta: "יעד כולל", atual: "עמוד נוכחי", saveBtn: "שמור התקדמות",
+                historyTitle: "עדכונים אחרונים:", clearHistory: "ניקוי", emptyTitle: "אין ספר פעיל 📖",
+                emptyDesc: "צור או בחר ספר בסרגל הצידי.", modalTitle: "👤 פרופיל סופר",
+                configLang: "שפה / Language", configTheme: "ערכת נושא", closeModal: "סגור",
+                alertMaxTrash: "העמוד הנוכחי עולה על היעד הכולל!", confirmHardDelete: "האם למחוק לצמיתות את \"{title}\"? לא ניתן לבטל פעולה זו.",
+                confirmImport: "האם להחליף את הספרים הנוכחיים?", confirmClearHistory: "האם למחוק את ההיסטוריה?",
+                fallbackTitle: "ספר חדש", untitiled: "ללא כותרת", pages: "עמ'", invalidJson: "קובץ JSON לא תקין.",
+                labelPage: "עמ'", labelProfile: "פרופיל", changeProfile: "שנה שם פרופיל",
+                linkDevice: "קישור למכשירים אחרים", expProf: "📥 ייצא פרופיל מקומי", impProf: "📤 ייבא פרופיל חיצוני",
+                confirmImportProf: "האם ברצונך לייבא ולהחליף את מרחב העבודה בפרופיל של \"{name}\"?", invalidProf: "קובץ זה אינו בפורמט פרופיל תקין.", errFile: "שגיאה בטעינת קובץ.",
+                tMix: "✨ זכוכית נורדית (ברירת מחדל)", tRoyal: "🔮 זכוכית סגול עמוק", tCyber: "🌿 ברקת זוהר", tMagma: "🔥 אפר וולקני", tNeon: "⚡ סייברפאנק ניאון", tEco: "🍃 מצב ביצועים אקולוגי",
+                popUpBtn: "🔲 פתח בחלון קופץ"
+            }
+        };
 
-            if (Object.keys(booksData).length === 0) {
-                const id = 'b_'+Date.now();
-                booksData = {[id]: createStandardBookObject(id, i18n[currentLang].fallbackTitle)};
-                save();
-            }
+        window.onload = function() {
+            if(window.history && window.history.replaceState){
+                window.history.replaceState(null, document.title, window.location.href);
+            }
+            
+            currentTheme = localStorage.getItem('wt_theme') || 'megamix';
+            currentLang = localStorage.getItem('wt_lang') || 'pt';
+            profileName = localStorage.getItem('wt_profile_name') || "Autor Padrão";
+            
+            try {
+                booksData = JSON.parse(localStorage.getItem('wt_books_data')) || {};
+            } catch(e) {
+                booksData = {};
+            }
 
-            applyLocalization(); findActiveId(); renderSidebar(); loadActiveBook();
-        };
+            document.documentElement.setAttribute('data-theme', currentTheme);
+            document.getElementById('settingTheme').value = currentTheme;
+            document.getElementById('settingLang').value = currentLang;
+            document.getElementById('profileNameInput').value = profileName;
+            
+            if(window.innerWidth <= 600) {
+                document.getElementById('sidebar').classList.add('collapsed');
+            }
 
-        function applyLocalization() {
-            const t = i18n[currentLang];
-            document.getElementById('lblNewBook').innerText = t.newBook;
-            document.getElementById('lblSettingsBtn').innerText = t.settingsBtn;
-            document.getElementById('lblExportBtn').innerText = t.exportBtn;
-            document.getElementById('lblImportBtn').innerText = t.importBtn;
-            document.getElementById('lblMeta').innerText = t.meta;
-            document.getElementById('lblAtual').innerText = t.atual;
-            document.getElementById('lblSaveBtn').innerText = t.saveBtn;
-            document.getElementById('lblHistoryTitle').innerText = t.historyTitle;
-            document.getElementById('lblClearHistory').innerText = t.clearHistory;
-            document.getElementById('lblEmptyTitle').innerText = t.emptyTitle;
-            document.getElementById('lblEmptyDesc').innerText = t.emptyDesc;
-            document.getElementById('lblModalTitle').innerText = t.modalTitle;
-            document.getElementById('lblConfigLang').innerText = t.configLang;
-            document.getElementById('lblConfigTheme').innerText = t.configTheme;
-            document.getElementById('lblCloseModal').innerText = t.closeModal;
-            
-            // Atualiza os nomes das opções de temas dinamicamente no modal
-            const themeSelect = document.getElementById('settingTheme');
-            themeSelect.options[0].text = t.themeCyber;
-            themeSelect.options[1].text = t.themeBr;
-            themeSelect.options[2].text = t.themeMagma;
-        }
+            updateInterfaceLanguage();
+            renderSidebar();
+            checkEmptyState();
+            manageDynamicEffects();
 
-        function openSettings() { document.getElementById('settingsModal').style.display = 'flex'; }
-        function closeSettings() { document.getElementById('settingsModal').style.display = 'none'; }
+            window.addEventListener('resize', resizeCanvas);
+        };
 
-        function changeTheme(themeValue) {
-            currentTheme = themeValue;
-            document.documentElement.setAttribute('data-theme', currentTheme);
-            localStorage.setItem('wt_theme', currentTheme);
-        }
+        /* ==========================================================================
+           MODIFICADO: SELETOR DE DIMENSÃO ULTRA-COMPACTA PARA O POP-UP (360x580)
+           ========================================================================== */
+        function openInPopUp() {
+            const width = 360;
+            const height = 580;
+            const left = (screen.width / 2) - (width / 2);
+            const top = (screen.height / 2) - (height / 2);
+            
+            window.open(
+                window.location.href, 
+                'WritingTrackerPopUp', 
+                `width=${width},height=${height},top=${top},left=${left},menubar=no,toolbar=no,location=no,status=no,resizable=yes,scrollbars=yes`
+            );
+        }
 
-        function changeLanguage(langValue) {
-            currentLang = langValue;
-            localStorage.setItem('wt_lang', currentLang);
-            applyLocalization();
-            renderSidebar();
-            loadActiveBook();
-        }
+        /* ==========================================================================
+           SISTEMA DE EFEITOS DINÂMICOS (CANVAS)
+           ========================================================================== */
+        function resizeCanvas() {
+            if (currentTheme === 'neon' || currentTheme === 'magma') {
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+                if(currentTheme === 'neon') initNeonRain();
+            }
+        }
 
-        function toggleSidebar() {
-            const sidebar = document.getElementById('sidebar');
-            const isCollapsed = sidebar.classList.toggle('collapsed');
-            localStorage.setItem('wt_side_collapsed', isCollapsed);
-        }
-        
-        function save() { 
-            localStorage.setItem('wt_b', JSON.stringify(booksData));
-            localStorage.setItem('wt_v', APP_VERSION); 
-        }
+        function initNeonRain() {
+            const fontSize = 14;
+            const columns = canvas.width / fontSize;
+            rainDrops = [];
+            for (let x = 0; x < columns; x++) {
+                rainDrops[x] = Math.random() * -100;
+            }
+        }
 
-        function migrateDataSchema() {
-            let modified = false;
-            Object.keys(booksData).forEach(id => {
-                let b = booksData[id];
-                if (typeof b !== 'object') return;
-                if (b.archived === undefined) { b.archived = false; modified = true; }
-                if (b.trash === undefined) { b.trash = false; modified = true; }
-                if (b.deletedAt === undefined) { b.deletedAt = 0; modified = true; }
-                if (!b.history) { b.history = []; modified = true; }
-                if (!b.title) { b.title = i18n[currentLang].fallbackTitle; modified = true; }
-            });
-            if (modified) save();
-        }
+        function manageDynamicEffects() {
+            if (fxInterval) {
+                clearInterval(fxInterval);
+                fxInterval = null;
+            }
 
-        function createStandardBookObject(id, title) {
-            return { id, title: title||i18n[currentLang].fallbackTitle, total: 300, current: 0, history: [], archived: false, trash: false, deletedAt: 0 };
-        }
+            if (currentTheme !== 'neon' && currentTheme !== 'magma') {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                return;
+            }
 
-        function findActiveId() {
-            activeBookId = localStorage.getItem('wt_a');
-            if(!activeBookId || !booksData[activeBookId] || booksData[activeBookId].trash) {
-                activeBookId = Object.keys(booksData).find(k => !booksData[k].archived && !booksData[k].trash) || null;
-            }
-        }
+            resizeCanvas();
 
-        function renderSidebar() {
-            const actContainer = document.getElementById('bookList');
-            const arcContainer = document.getElementById('archiveList');
-            const tshContainer = document.getElementById('trashList');
-            actContainer.innerHTML = ''; arcContainer.innerHTML = ''; tshContainer.innerHTML = '';
-            let cArc = 0, cTsh = 0;
+            if (currentTheme === 'neon') {
+                initNeonRain();
+                const katakana = 'ｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝ1234567890XYZ';
+                const alphabet = katakana.split('');
+                const fontSize = 14;
 
-            const list = Object.values(booksData).sort((a,b) => (b.deletedAt || 0) - (a.deletedAt || 0));
+                fxInterval = setInterval(() => {
+                    ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            list.forEach(b => {
-                if(b.trash) {
-                    tshContainer.innerHTML += `
-                        <div class="book-item">
-                            <span class="book-title-tab" style="text-decoration:line-through;color:var(--text-muted)">${b.title}</span>
-                            <div class="actions-tab">
-                                <button class="btn-action-tab" onclick="recoverBook(event,'${b.id}')" title="Restaurar">🔄</button>
-                                <button class="btn-action-tab del" onclick="hardDeleteBook(event,'${b.id}')" title="Excluir">❌</button>
-                            </div>
-                        </div>`;
-                    cTsh++;
-                } else if(b.archived) {
-                    arcContainer.innerHTML += `
-                        <div class="book-item ${b.id===activeBookId?'active':''}" onclick="switchBook('${b.id}')">
-                            <span class="book-title-tab">${b.title}</span>
-                            <div class="actions-tab">
-                                <button class="btn-action-tab" onclick="toggleArchive(event,'${b.id}')" title="Desarquivar">📥</button>
-                                <button class="btn-action-tab del" onclick="moveToTrash(event,'${b.id}')" title="Lixeira">🗑️</button>
-                            </div>
-                        </div>`;
-                    cArc++;
-                } else {
-                    actContainer.innerHTML += `
-                        <div class="book-item ${b.id===activeBookId?'active':''}" onclick="switchBook('${b.id}')">
-                            <span class="book-title-tab">${b.title}</span>
-                            <div class="actions-tab">
-                                <button class="btn-action-tab" onclick="toggleArchive(event,'${b.id}')" title="Arquivar">📦</button>
-                                <button class="btn-action-tab del" onclick="moveToTrash(event,'${b.id}')" title="Lixeira">🗑️</button>
-                            </div>
-                        </div>`;
-                }
-            });
-            document.getElementById('lblArchiveSec').innerText = `${i18n[currentLang].archiveSec} (${cArc})`;
-            document.getElementById('lblTrashSec').innerText = `${i18n[currentLang].trashSec} (${cTsh}/5)`;
-        }
+                    ctx.fillStyle = '#39ff14';
+                    ctx.font = fontSize + 'px monospace';
 
-        function toggleSection(id, arrowId) {
-            vis[id] = !vis[id];
-            document.getElementById(id).style.display = vis[id] ? 'flex' : 'none';
-            document.getElementById(arrowId).innerText = vis[id] ? '▼' : '▶';
-        }
+                    for (let i = 0; i < rainDrops.length; i++) {
+                        const text = alphabet[Math.floor(Math.random() * alphabet.length)];
+                        if(rainDrops[i] >= 0) {
+                            ctx.fillText(text, i * fontSize, rainDrops[i] * fontSize);
+                        }
 
-        function toggleArchive(e, id) {
-            e.stopPropagation();
-            booksData[id].archived = !booksData[id].archived;
-            findActiveId(); save(); renderSidebar(); loadActiveBook();
-        }
+                        if (rainDrops[i] * fontSize > canvas.height && Math.random() > 0.975) {
+                            rainDrops[i] = 0;
+                        }
+                        rainDrops[i]++;
+                    }
+                }, 33);
 
-        function moveToTrash(e, id) {
-            e.stopPropagation();
-            const trashItems = Object.values(booksData).filter(b => b.trash).sort((a,b) => (a.deletedAt || 0) - (b.deletedAt || 0));
-            if(trashItems.length >= 5) {
-                delete booksData[trashItems[0].id];
-            }
-            booksData[id].trash = true;
-            booksData[id].deletedAt = Date.now();
-            findActiveId(); save(); renderSidebar(); loadActiveBook();
-        }
+            } else if (currentTheme === 'magma') {
+                embers = [];
+                const maxEmbers = 45;
 
-        function recoverBook(e, id) {
-            e.stopPropagation();
-            booksData[id].trash = false;
-            booksData[id].deletedAt = 0;
-            save(); renderSidebar(); loadActiveBook();
-        }
+                fxInterval = setInterval(() => {
+                    ctx.fillStyle = 'rgba(12, 10, 9, 0.15)';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        function hardDeleteBook(e, id) {
-            e.stopPropagation();
-            const msg = i18n[currentLang].confirmHardDelete.replace("{title}", booksData[id].title);
-            if(confirm(msg)) {
-                delete booksData[id];
-                save(); renderSidebar(); loadActiveBook();
-            }
-        }
+                    if (embers.length < maxEmbers && Math.random() < 0.4) {
+                        embers.push({
+                            x: Math.random() * canvas.width,
+                            y: canvas.height + 10,
+                            size: Math.random() * 3 + 1,
+                            speedY: Math.random() * 1.5 + 0.5,
+                            speedX: (Math.random() - 0.5) * 0.6,
+                            alpha: 1,
+                            decay: Math.random() * 0.008 + 0.003,
+                            colorHue: Math.random() > 0.3 ? Math.floor(Math.random() * 20) + 15 : Math.floor(Math.random() * 15)
+                        });
+                    }
 
-        function loadActiveBook() {
-            const card = document.getElementById('editorCard'), empty = document.getElementById('emptyState');
-            if(!activeBookId || !booksData[activeBookId] || booksData[activeBookId].trash) { card.style.display='none'; empty.style.display='block'; return; }
-            card.style.display='block'; empty.style.display='none';
-            const b = booksData[activeBookId];
-            document.getElementById('bookTitle').value = b.title;
-            document.getElementById('totalPages').value = b.total;
-            document.getElementById('currentPage').value = b.current;
-            updateUI(); renderHistory();
-        }
+                    for (let i = embers.length - 1; i >= 0; i--) {
+                        let p = embers[i];
+                        p.y -= p.speedY;
+                        p.x += p.speedX;
+                        p.alpha -= p.decay;
 
-        function switchBook(id) { activeBookId = id; localStorage.setItem('wt_a', id); renderSidebar(); loadActiveBook(); }
+                        ctx.fillStyle = `hsla(${p.colorHue}, 100%, 55%, ${p.alpha})`;
+                        ctx.beginPath();
+                        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                        ctx.fill();
 
-        function createNewBook() {
-            const id = 'b_'+Date.now();
-            booksData[id] = createStandardBookObject(id, i18n[currentLang].fallbackTitle);
-            save(); switchBook(id);
-        }
+                        if (p.alpha <= 0 || p.y < -10) {
+                            embers.splice(i, 1);
+                        }
+                    }
+                }, 25);
+            }
+        }
 
-        function updateBookTitle(v) {
-            if(!activeBookId) return;
-            const t = v.trim() || i18n[currentLang].untitiled; booksData[activeBookId].title = t;
-            save(); renderSidebar();
-        }
+        /* ==========================================================================
+           LOGICA DE IDIOMA E INTERFACE
+           ========================================================================== */
+        function updateInterfaceLanguage() {
+            const lang = i18n[currentLang] || i18n.pt;
+            
+            if(currentLang === 'ar' || currentLang === 'he') {
+                document.body.classList.add('rtl');
+            } else {
+                document.body.classList.remove('rtl');
+            }
 
-        function updateUI() {
-            if(!activeBookId) return;
-            const t = Math.max(parseInt(document.getElementById('totalPages').value)||1, 1);
-            const c = Math.max(parseInt(document.getElementById('currentPage').value)||0, 0);
-            let p = Math.min(Math.max((c/t)*100, 0), 100).toFixed(1);
-            document.getElementById('progressBar').style.width = p+'%';
-            document.getElementById('stats').innerText = `${c} / ${t} ${i18n[currentLang].pages} (${p}%)`;
-        }
+            document.getElementById('lblNewBook').innerText = lang.newBook;
+            document.getElementById('lblSettingsBtn').innerText = lang.settingsBtn;
+            document.getElementById('lblPopUpBtn').innerText = lang.popUpBtn;
+            document.getElementById('lblExportBtn').innerText = lang.exportBtn;
+            document.getElementById('lblImportBtn').innerText = lang.importBtn;
+            document.getElementById('lblMeta').innerText = lang.meta;
+            document.getElementById('lblAtual').innerText = lang.atual;
+            document.getElementById('lblSaveBtn').innerText = lang.saveBtn;
+            document.getElementById('lblHistoryTitle').innerText = lang.historyTitle;
+            document.getElementById('lblClearHistory').innerText = lang.clearHistory;
+            document.getElementById('lblEmptyTitle').innerText = lang.emptyTitle;
+            document.getElementById('lblEmptyDesc').innerText = lang.emptyDesc;
+            document.getElementById('lblModalTitle').innerText = lang.modalTitle;
+            document.getElementById('lblChangeProfile').innerText = lang.changeProfile;
+            document.getElementById('lblLinkDevice').innerText = lang.linkDevice;
+            document.getElementById('lblExpProfBtn').innerText = lang.expProf;
+            document.getElementById('lblImpProfBtn').innerText = lang.impProf;
+            document.getElementById('lblConfigLang').innerText = lang.configLang;
+            document.getElementById('lblConfigTheme').innerText = lang.configTheme;
+            document.getElementById('lblCloseModal').innerText = lang.closeModal;
 
-        function saveProgress() {
-            if(!activeBookId) return;
-            const t = parseInt(document.getElementById('totalPages').value)||1, c = parseInt(document.getElementById('currentPage').value)||0;
-            if(c > t) { alert(i18n[currentLang].alertMaxTrash); return; }
-            booksData[activeBookId].total = t; booksData[activeBookId].current = c;
-            let h = booksData[activeBookId].history || [];
-            const now = new Date(), dStr = now.toLocaleDateString()+' '+now.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
-            if(h.length===0 || h[0].page!==c) { h.unshift({date:dStr, page:c}); booksData[activeBookId].history = h; }
-            save(); updateUI(); renderHistory();
-        }
+            document.getElementById('currentProfileName').innerText = `${lang.labelProfile}: ${profileName}`;
 
-        function renderHistory() {
-            if(!activeBookId) return;
-            const h = booksData[activeBookId].history || [], container = document.getElementById('historyLog'); container.innerHTML = '';
-            if(h.length===0) { container.innerHTML = '-'; return; }
-            h.slice(0,3).forEach(i => { container.innerHTML += `<div class="history-item"><span>Pág / Pg ${i.page}</span><span>${i.date}</span></div>`; });
-        }
+            const optTheme = document.getElementById('settingTheme').options;
+            optTheme[0].text = lang.tMix;
+            optTheme[1].text = lang.tRoyal;
+            optTheme[2].text = lang.tCyber;
+            optTheme[3].text = lang.tMagma;
+            optTheme[4].text = lang.tNeon;
+            optTheme[5].text = lang.tEco;
 
-        function clearBookHistory() {
-            if(activeBookId && confirm(i18n[currentLang].confirmClearHistory)) { booksData[activeBookId].history = []; save(); renderHistory(); }
-        }
+            updateSectionCounters();
+        }
 
-        function exportBackup() {
-            if(Object.keys(booksData).length===0) return;
-            const a = document.createElement('a');
-            a.setAttribute("href", "data:text/json;charset=utf-8,"+encodeURIComponent(JSON.stringify(booksData)));
-            a.setAttribute("download", `backup_escr_${Date.now()}.json`); document.body.appendChild(a); a.click(); a.remove();
-        }
+        function changeLanguage(val) {
+            currentLang = val;
+            localStorage.setItem('wt_lang', val);
+            updateInterfaceLanguage();
+            if(activeBookId) loadBook(activeBookId);
+            renderSidebar();
+        }
 
-        function importBackup(e) {
-            const f = e.target.files[0]; if(!f) return;
-            const r = new FileReader();
-            r.onload = function(evt) {
-                try {
-                    const data = JSON.parse(evt.target.result);
-                    if(typeof data === 'object' && confirm(i18n[currentLang].confirmImport)) {
-                        booksData = data; migrateDataSchema(); save(); findActiveId(); renderSidebar(); loadActiveBook();
-                    }
-                } catch(err) { alert(i18n[currentLang].invalidJson); }
-            };
-            r.readAsText(f); e.target.value = '';
-        }
+        function changeTheme(val) {
+            currentTheme = val;
+            localStorage.setItem('wt_theme', val);
+            document.documentElement.setAttribute('data-theme', val);
+            manageDynamicEffects();
+        }
 
-        document.getElementById('totalPages').addEventListener('input', updateUI);
-        document.getElementById('currentPage').addEventListener('input', updateUI);
-    </script>
+        function renameProfile(val) {
+            if(!val.trim()) return;
+            profileName = val.trim();
+            localStorage.setItem('wt_profile_name', profileName);
+            const lang = i18n[currentLang] || i18n.pt;
+            document.getElementById('currentProfileName').innerText = `${lang.labelProfile}: ${profileName}`;
+        }
+
+        /* ==========================================================================
+           GERENCIAMENTO DE LIVROS
+           ========================================================================== */
+        function createNewBook() {
+            const lang = i18n[currentLang] || i18n.pt;
+            const id = 'book_' + Date.now();
+            booksData[id] = {
+                id: id,
+                title: lang.fallbackTitle,
+                totalPages: 100,
+                currentPage: 0,
+                status: 'active',
+                history: []
+            };
+            saveToLocalStorage();
+            renderSidebar();
+            selectBook(id);
+        }
+
+        function selectBook(id) {
+            if(!booksData[id] || booksData[id].status === 'trash') return;
+            activeBookId = id;
+            loadBook(id);
+            renderSidebar();
+            
+            if(window.innerWidth <= 600) {
+                document.getElementById('sidebar').classList.add('collapsed');
+            }
+        }
+
+        function loadBook(id) {
+            const book = booksData[id];
+            document.getElementById('bookTitle').value = book.title || "";
+            document.getElementById('totalPages').value = book.totalPages || 0;
+            document.getElementById('currentPage').value = book.currentPage || 0;
+            
+            updateProgressBar(book);
+            renderHistoryLog(book);
+            
+            document.getElementById('emptyState').style.display = 'none';
+            document.getElementById('editorCard').style.display = 'block';
+        }
+
+        function updateBookTitle(val) {
+            if(!activeBookId || !booksData[activeBookId]) return;
+            booksData[activeBookId].title = val;
+            saveToLocalStorage();
+            
+            const element = document.querySelector(`[data-id="${activeBookId}"] .book-title-tab`);
+            if(element) element.innerText = val || i18n[currentLang].untitiled;
+        }
+
+        function saveProgress() {
+            if(!activeBookId || !booksData[activeBookId]) return;
+            const book = booksData[activeBookId];
+            const total = parseInt(document.getElementById('totalPages').value) || 0;
+            const current = parseInt(document.getElementById('currentPage').value) || 0;
+            const lang = i18n[currentLang] || i18n.pt;
+
+            if(current > total) {
+                alert(lang.alertMaxTrash);
+                return;
+            }
+
+            book.totalPages = total;
+            book.currentPage = current;
+
+            const timestamp = new Date().toLocaleDateString(currentLang, {day: 'numeric', month: 'short', hour: '2-digit', minute:'2-digit'});
+            book.history.unshift({
+                date: timestamp,
+                page: current
+            });
+
+            if(book.history.length > 30) book.history.pop();
+
+            saveToLocalStorage();
+            updateProgressBar(book);
+            renderHistoryLog(book);
+            renderSidebar();
+        }
+
+        function updateProgressBar(book) {
+            const lang = i18n[currentLang] || i18n.pt;
+            const total = book.totalPages || 0;
+            const current = book.currentPage || 0;
+            const pct = total > 0 ? Math.min(Math.round((current / total) * 100), 100) : 0;
+
+            document.getElementById('progressBar').style.width = pct + '%';
+            document.getElementById('stats').innerText = `${current}/${total} ${lang.pages} (${pct}%)`;
+        }
+
+        function renderHistoryLog(book) {
+            const container = document.getElementById('historyLog');
+            container.innerHTML = "";
+            const lang = i18n[currentLang] || i18n.pt;
+
+            (book.history || []).forEach(item => {
+                const div = document.createElement('div');
+                div.className = 'history-item';
+                div.innerHTML = `<span>${item.date}</span> <strong>${lang.labelPage} ${item.page}</strong>`;
+                container.appendChild(div);
+            });
+        }
+
+        function clearBookHistory() {
+            if(!activeBookId || !booksData[activeBookId]) return;
+            const lang = i18n[currentLang] || i18n.pt;
+            if(!confirm(lang.confirmClearHistory)) return;
+
+            booksData[activeBookId].history = [];
+            saveToLocalStorage();
+            renderHistoryLog(booksData[activeBookId]);
+        }
+
+        /* ==========================================================================
+           CONTROLE DE FLUXO DE ACERVO
+           ========================================================================= */
+        function changeBookStatus(id, newStatus) {
+            if(!booksData[id]) return;
+            
+            if(newStatus === 'trash') {
+                const trashCount = Object.values(booksData).filter(b => b.status === 'trash').length;
+                if(trashCount >= 5) {
+                    const trashBooks = Object.values(booksData).filter(b => b.status === 'trash').sort((a,b) => a.id.localeCompare(b.id));
+                    if(trashBooks.length > 0) delete booksData[trashBooks[0].id];
+                }
+            }
+
+            booksData[id].status = newStatus;
+            
+            if(activeBookId === id && newStatus !== 'active') {
+                activeBookId = null;
+                document.getElementById('editorCard').style.display = 'none';
+            }
+
+            saveToLocalStorage();
+            renderSidebar();
+            checkEmptyState();
+        }
+
+        function hardDeleteBook(id) {
+            if(!booksData[id]) return;
+            const lang = i18n[currentLang] || i18n.pt;
+            if(!confirm(lang.confirmHardDelete.replace("{title}", booksData[id].title))) return;
+
+            delete booksData[id];
+            saveToLocalStorage();
+            renderSidebar();
+        }
+
+        /* ==========================================================================
+           INTERFACES DE RENDERIZAÇÃO DA SIDEBAR
+           ========================================================================== */
+        function renderSidebar() {
+            const listContainer = document.getElementById('bookList');
+            const archiveContainer = document.getElementById('archiveList');
+            const trashContainer = document.getElementById('trashList');
+            const lang = i18n[currentLang] || i18n.pt;
+
+            listContainer.innerHTML = "";
+            archiveContainer.innerHTML = "";
+            trashContainer.innerHTML = "";
+
+            Object.values(booksData).forEach(book => {
+                const item = document.createElement('div');
+                item.className = `book-item ${book.id === activeBookId ? 'active' : ''}`;
+                item.setAttribute('data-id', book.id);
+
+                const titleSpan = document.createElement('span');
+                titleSpan.className = 'book-title-tab';
+                titleSpan.innerText = book.title || lang.untitiled;
+
+                if(book.status === 'active') {
+                    item.onclick = () => selectBook(book.id);
+                    item.appendChild(titleSpan);
+
+                    const actions = document.createElement('div');
+                    actions.className = 'actions-tab';
+                    actions.innerHTML = `
+                        <button class="btn-action-tab" onclick="event.stopPropagation(); changeBookStatus('${book.id}', 'archived')" title="Arquivar">📦</button>
+                        <button class="btn-action-tab del" onclick="event.stopPropagation(); changeBookStatus('${book.id}', 'trash')" title="Lixeira">🗑️</button>
+                    `;
+                    item.appendChild(actions);
+                    listContainer.appendChild(item);
+
+                } else if(book.status === 'archived') {
+                    item.appendChild(titleSpan);
+                    const actions = document.createElement('div');
+                    actions.className = 'actions-tab';
+                    actions.innerHTML = `
+                        <button class="btn-action-tab" onclick="event.stopPropagation(); changeBookStatus('${book.id}', 'active')" title="Desarquivar">📤</button>
+                        <button class="btn-action-tab del" onclick="event.stopPropagation(); changeBookStatus('${book.id}', 'trash')" title="Lixeira">🗑️</button>
+                    `;
+                    item.appendChild(actions);
+                    archiveContainer.appendChild(item);
+
+                } else if(book.status === 'trash') {
+                    item.appendChild(titleSpan);
+                    const actions = document.createElement('div');
+                    actions.className = 'actions-tab';
+                    actions.innerHTML = `
+                        <button class="btn-action-tab" onclick="event.stopPropagation(); changeBookStatus('${book.id}', 'active')" title="Restaurar">↩️</button>
+                        <button class="btn-action-tab del" onclick="event.stopPropagation(); hardDeleteBook('${book.id}')" title="Excluir Definitivamente">❌</button>
+                    `;
+                    item.appendChild(actions);
+                    trashContainer.appendChild(item);
+                }
+            });
+
+            updateSectionCounters();
+        }
+
+        function updateSectionCounters() {
+            const lang = i18n[currentLang] || i18n.pt;
+            const cArchive = Object.values(booksData).filter(b => b.status === 'archived').length;
+            const cTrash = Object.values(booksData).filter(b => b.status === 'trash').length;
+
+            document.getElementById('lblArchiveSec').innerText = `${lang.archiveSec} (${cArchive})`;
+            document.getElementById('lblTrashSec').innerText = `${lang.trashSec} (${cTrash}/5)`;
+        }
+
+        function toggleSection(listId, arrowId) {
+            vis[listId] = !vis[listId];
+            const el = document.getElementById(listId);
+            const arrow = document.getElementById(arrowId);
+            
+            if(vis[listId]) {
+                el.classList.add('visible');
+                arrow.innerText = "▼";
+            } else {
+                el.classList.remove('visible');
+                arrow.innerText = "▶";
+            }
+        }
+
+        function toggleSidebar() {
+            const sb = document.getElementById('sidebar');
+            sb.classList.toggle('collapsed');
+        }
+
+        function checkEmptyState() {
+            if(!activeBookId) {
+                document.getElementById('editorCard').style.display = 'none';
+                document.getElementById('emptyState').style.display = 'block';
+            }
+        }
+
+        function saveToLocalStorage() {
+            localStorage.setItem('wt_books_data', JSON.stringify(booksData));
+        }
+
+        /* ==========================================================================
+           MODAL E CONFIGURAÇÃO DE PROFILE/BACKUPS
+           ========================================================================== */
+        function openSettings() {
+            document.getElementById('settingsModal').classList.add('visible');
+        }
+
+        function closeSettings() {
+            document.getElementById('settingsModal').classList.remove('visible');
+        }
+
+        /* ==========================================================================
+           BACKUPS E EXPORTAÇÃO
+           ========================================================================== */
+        function exportBackup() {
+            const backup = {
+                version: APP_VERSION,
+                profileName: profileName,
+                theme: currentTheme,
+                lang: currentLang,
+                books: booksData
+            };
+            downloadJson(backup, `Rastreador_Escrita_Backup.json`);
+        }
+
+        function importBackup(event) {
+            const lang = i18n[currentLang] || i18n.pt;
+            const file = event.target.files[0];
+            if(!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    if(!data.books) throw new Error();
+                    
+                    if(confirm(lang.confirmImport)) {
+                        booksData = data.books;
+                        if(data.profileName) profileName = data.profileName;
+                        if(data.theme) currentTheme = data.theme;
+                        if(data.lang) currentLang = data.lang;
+
+                        localStorage.setItem('wt_profile_name', profileName);
+                        localStorage.setItem('wt_theme', currentTheme);
+                        localStorage.setItem('wt_lang', currentLang);
+                        document.documentElement.setAttribute('data-theme', currentTheme);
+                        
+                        saveToLocalStorage();
+                        updateInterfaceLanguage();
+                        renderSidebar();
+                        activeBookId = null;
+                        checkEmptyState();
+                        manageDynamicEffects();
+                    }
+                } catch(err) {
+                    alert(lang.invalidJson);
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function exportProfileOnly() {
+            const profile = {
+                profileName: profileName,
+                theme: currentTheme,
+                lang: currentLang
+            };
+            downloadJson(profile, `Perfil_${profileName.replace(/\s+/g, '_')}.json`);
+        }
+
+        function importProfileOnly(event) {
+            const lang = i18n[currentLang] || i18n.pt;
+            const file = event.target.files[0];
+            if(!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    if(!data.profileName) {
+                        alert(lang.invalidProf);
+                        return;
+                    }
+                    if(confirm(lang.confirmImportProf.replace("{name}", data.profileName))) {
+                        profileName = data.profileName;
+                        if(data.theme) currentTheme = data.theme;
+                        if(data.lang) currentLang = data.lang;
+
+                        localStorage.setItem('wt_profile_name', profileName);
+                        localStorage.setItem('wt_theme', currentTheme);
+                        localStorage.setItem('wt_lang', currentLang);
+                        
+                        document.documentElement.setAttribute('data-theme', currentTheme);
+                        document.getElementById('settingTheme').value = currentTheme;
+                        document.getElementById('settingLang').value = currentLang;
+                        document.getElementById('profileNameInput').value = profileName;
+
+                        updateInterfaceLanguage();
+                        manageDynamicEffects();
+                    }
+                } catch(err) {
+                    alert(lang.errFile);
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function downloadJson(obj, filename) {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(obj, null, 2));
+            const dlAnchorElem = document.createElement('a');
+            dlAnchorElem.setAttribute("href", dataStr);
+            dlAnchorElem.setAttribute("download", filename);
+            dlAnchorElem.click();
+            dlAnchorElem.remove();
+        }
+    </script>
 </body>
 </html>
